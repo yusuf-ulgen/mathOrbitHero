@@ -1,53 +1,106 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LevelConfig, generateLevel, generateInfinityLevel, MathOp } from '../utils/levelGenerator';
 
 interface GameState {
-  heroValue: number;
-  currentOrbit: number;
-  gameState: 'START' | 'PLAYING' | 'FAILED' | 'BOSS' | 'WIN';
-  score: number;
+  heroPower: number;
+  currentLevelIndex: number;
   highScore: number;
+  currentScore: number; // Tracks current run score for infinity
+  gameMode: 'LEVEL' | 'INFINITY' | null;
+  gamePhase: 'MENU' | 'ORBIT_PHASE' | 'METEOR_PHASE' | 'GAME_OVER' | 'WIN';
+  currentLevelData: LevelConfig | null;
+  activeOrbitIndex: number;
   
   // Actions
-  setGameState: (state: GameState['gameState']) => void;
-  updateHeroValue: (value: number | string) => void;
+  setGameMode: (mode: 'LEVEL' | 'INFINITY') => void;
+  startLevel: (level?: number) => void;
+  applyMathOp: (op: MathOp, value: number) => void;
   nextOrbit: () => void;
-  resetGame: () => void;
+  completeLevel: (success: boolean) => void;
+  setGamePhase: (phase: GameState['gamePhase']) => void;
+  resetToMenu: () => void;
 }
 
-export const useGameStore = create<GameState>((set) => ({
-  heroValue: 10,
-  currentOrbit: 0,
-  gameState: 'START',
-  score: 0,
-  highScore: 0,
+export const useGameStore = create<GameState>()(
+  persist(
+    (set, get) => ({
+      heroPower: 5,
+      currentLevelIndex: 1,
+      highScore: 0,
+      currentScore: 0,
+      gameMode: null,
+      gamePhase: 'MENU',
+      currentLevelData: null,
+      activeOrbitIndex: 0,
 
-  setGameState: (state) => set({ gameState: state }),
+      setGameMode: (mode) => set({ gameMode: mode, currentScore: 0 }),
 
-  updateHeroValue: (val) => set((state) => {
-    let newValue = state.heroValue;
-    if (typeof val === 'number') {
-      newValue += val;
-    } else {
-      // Handle operators like 'x2' or '/2'
-      const op = val[0];
-      const num = parseInt(val.slice(1));
-      if (op === 'x') newValue *= num;
-      if (op === '/') newValue = Math.floor(newValue / num);
-      if (op === '+') newValue += num;
-      if (op === '-') newValue -= num;
+      startLevel: (level) => {
+        const mode = get().gameMode;
+        const currentLvl = get().currentLevelIndex;
+        const score = get().currentScore;
+        
+        // Infinity starts easy and scales with current run score
+        const data = mode === 'INFINITY' 
+          ? generateInfinityLevel(score) 
+          : generateLevel(level || currentLvl);
+
+        set({
+          currentLevelData: data,
+          gamePhase: 'ORBIT_PHASE',
+          activeOrbitIndex: 0,
+          heroPower: 5,
+        });
+      },
+
+      applyMathOp: (op, value) => set((state) => {
+        let newPower = state.heroPower;
+        if (op === '+') newPower += value;
+        if (op === '-') newPower -= value;
+        if (op === '*') newPower *= value;
+        if (op === '/') newPower = Math.floor(newPower / value);
+        return { heroPower: Math.max(0, newPower) };
+      }),
+
+      nextOrbit: () => set((state) => {
+        const isLastOrbit = state.activeOrbitIndex === (state.currentLevelData?.orbits.length || 0) - 1;
+        if (isLastOrbit) {
+          return { gamePhase: 'METEOR_PHASE' };
+        }
+        return { activeOrbitIndex: state.activeOrbitIndex + 1 };
+      }),
+
+      completeLevel: (success) => set((state) => {
+        if (!success) return { gamePhase: 'GAME_OVER' };
+        
+        if (state.gameMode === 'LEVEL') {
+          return { 
+            gamePhase: 'WIN', 
+            currentLevelIndex: state.currentLevelIndex + 1 
+          };
+        } else {
+          const newScore = state.currentScore + 1;
+          return { 
+            gamePhase: 'WIN', 
+            currentScore: newScore,
+            highScore: Math.max(state.highScore, newScore) 
+          };
+        }
+      }),
+
+      setGamePhase: (phase) => set({ gamePhase: phase }),
+
+      resetToMenu: () => set({ gamePhase: 'MENU', gameMode: null, currentLevelData: null }),
+    }),
+    {
+      name: 'math-orbit-hero-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ 
+        currentLevelIndex: state.currentLevelIndex, 
+        highScore: state.highScore 
+      }),
     }
-    return { heroValue: Math.max(0, newValue) };
-  }),
-
-  nextOrbit: () => set((state) => ({ 
-    currentOrbit: state.currentOrbit + 1,
-    score: state.score + 10 
-  })),
-
-  resetGame: () => set({
-    heroValue: 10,
-    currentOrbit: 0,
-    gameState: 'START',
-    score: 0,
-  }),
-}));
+  )
+);

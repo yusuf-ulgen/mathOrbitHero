@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, memo } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import Animated, { 
   useSharedValue, 
@@ -8,24 +8,26 @@ import Animated, {
   Easing 
 } from 'react-native-reanimated';
 import { COLORS } from '../constants/theme';
+import { MathSlot } from '../utils/levelGenerator';
 
 interface OrbitProps {
   radius: number;
-  rotationSpeed: number; // ms per revolution
-  gates: { value: string; angle: number }[];
-  enemies: { value: number; angle: number }[];
+  rotationSpeed: number;
+  slots: MathSlot[];
+  isActive: boolean;
 }
 
-export const Orbit: React.FC<OrbitProps> = ({ radius, rotationSpeed, gates, enemies }) => {
+export const Orbit: React.FC<OrbitProps> = memo(({ radius, rotationSpeed, slots, isActive }) => {
   const rotation = useSharedValue(0);
 
   useEffect(() => {
+    rotation.value = 0;
     rotation.value = withRepeat(
       withTiming(360, { duration: rotationSpeed, easing: Easing.linear }),
       -1,
       false
     );
-  }, []);
+  }, [rotationSpeed]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
@@ -33,32 +35,46 @@ export const Orbit: React.FC<OrbitProps> = ({ radius, rotationSpeed, gates, enem
 
   return (
     <View style={[styles.container, { width: radius * 2, height: radius * 2 }]}>
-      <View style={[styles.ring, { width: radius * 2, height: radius * 2, borderRadius: radius }]} />
+      <View style={[
+        styles.ring, 
+        { 
+          width: radius * 2, 
+          height: radius * 2, 
+          borderRadius: radius,
+          borderColor: isActive ? COLORS.primary : COLORS.orbit,
+          borderWidth: isActive ? 2 : 1,
+          opacity: isActive ? 1 : 0.5,
+        }
+      ]} />
+      
       <Animated.View style={[styles.content, animatedStyle]}>
-        {gates.map((gate, i) => (
-          <View key={`gate-${i}`} style={[
-            styles.item, 
-            { transform: [{ rotate: `${gate.angle}deg` }, { translateY: -radius }] }
-          ]}>
-            <View style={styles.gateBox}>
-              <Text style={styles.gateText}>{gate.value}</Text>
+        {slots.map((slot, i) => {
+          const angle = i * 120; // 3 slots
+          const isNegative = slot.op === '-' || slot.op === '/';
+          
+          return (
+            <View key={`slot-${i}`} style={[
+              styles.item, 
+              { transform: [{ rotate: `${angle}deg` }, { translateY: -radius }] }
+            ]}>
+              <View style={[
+                styles.slotBox,
+                { borderColor: isNegative ? COLORS.danger : COLORS.success }
+              ]}>
+                <Text style={[
+                  styles.slotText,
+                  { color: isNegative ? COLORS.danger : COLORS.success }
+                ]}>
+                  {slot.label}
+                </Text>
+              </View>
             </View>
-          </View>
-        ))}
-        {enemies.map((enemy, i) => (
-          <View key={`enemy-${i}`} style={[
-            styles.item, 
-            { transform: [{ rotate: `${enemy.angle}deg` }, { translateY: -radius }] }
-          ]}>
-            <View style={styles.enemyBox}>
-              <Text style={styles.enemyText}>{enemy.value}</Text>
-            </View>
-          </View>
-        ))}
+          );
+        })}
       </Animated.View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -68,7 +84,6 @@ const styles = StyleSheet.create({
   },
   ring: {
     borderWidth: 1,
-    borderColor: COLORS.orbit,
     position: 'absolute',
   },
   content: {
@@ -82,29 +97,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gateBox: {
-    backgroundColor: COLORS.secondary,
-    padding: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#fff',
-    elevation: 10,
+  slotBox: {
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    minWidth: 50,
+    alignItems: 'center',
   },
-  gateText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  enemyBox: {
-    backgroundColor: COLORS.danger,
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-  enemyText: {
-    color: '#fff',
+  slotText: {
     fontWeight: 'bold',
     fontSize: 16,
+    textShadowRadius: 5,
   },
 });
