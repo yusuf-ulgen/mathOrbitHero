@@ -12,9 +12,10 @@ import { Target } from 'lucide-react-native';
 interface HeroProps {
   value: number;
   isShooting: boolean;
+  dragVector: { x: number; y: number } | null;
 }
 
-export const Hero: React.FC<HeroProps> = memo(({ value, isShooting }) => {
+export const Hero: React.FC<HeroProps> = memo(({ value, isShooting, dragVector }) => {
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
@@ -38,6 +39,23 @@ export const Hero: React.FC<HeroProps> = memo(({ value, isShooting }) => {
         {/* Visual decoration */}
         <View style={styles.core} />
       </Animated.View>
+
+      {/* Drag Indicator (Simple Arrow) */}
+      {dragVector && (
+        <View style={[
+          styles.dragIndicator,
+          {
+            height: 100, 
+            transform: [
+              { translateY: -50 }, 
+              { rotate: `${Math.atan2(-dragVector.x, dragVector.y) * 180 / Math.PI + 180}deg` }
+            ]
+          }
+        ]}>
+          <View style={styles.dragLine} />
+          <View style={styles.dragHead} />
+        </View>
+      )}
     </View>
   );
 });
@@ -101,5 +119,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  dragIndicator: {
+    position: 'absolute',
+    width: 2,
+    alignItems: 'center',
+    zIndex: -1,
+  },
+  dragLine: {
+    width: 2,
+    height: 60,
+    backgroundColor: COLORS.primary,
+    opacity: 0.8,
+  },
+  dragHead: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 15,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: COLORS.primary,
+    transform: [{ rotate: '0deg' }],
+    marginTop: -10,
   },
 });

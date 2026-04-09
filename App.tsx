@@ -6,12 +6,15 @@ import {
   TouchableOpacity, 
   Dimensions, 
   Text,
-  SafeAreaView
+  SafeAreaView,
+  PanResponder,
+  Animated as ReactNativeAnimated
 } from 'react-native';
 import { Hero } from './src/components/Hero';
 import { Orbit } from './src/components/Orbit';
 import { Meteor } from './src/components/Meteor';
 import { Projectile } from './src/components/Projectile';
+import { TutorialAlert } from './src/components/TutorialAlert';
 import { useGameStore } from './src/store/useGameStore';
 import { COLORS } from './src/constants/theme';
 import * as Haptics from 'expo-haptics';
@@ -64,12 +67,64 @@ export default function App() {
     nextOrbit,
     completeLevel,
     setGamePhase,
-    resetToMenu
+    resetToMenu,
+    skipOrbit,
+    showTutorialWarning,
+    setShowTutorialWarning
   } = useGameStore();
 
   const [isShooting, setIsShooting] = useState(false);
+  const [shotVector, setShotVector] = useState({ x: 0, y: 0 });
   const [activeProjectile, setActiveProjectile] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [currentDrag, setCurrentDrag] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  
+  const gamePhaseRef = useRef(gamePhase);
+  const isShootingRef = useRef(isShooting);
+
+  React.useEffect(() => {
+    gamePhaseRef.current = gamePhase;
+  }, [gamePhase]);
+
+  React.useEffect(() => {
+    isShootingRef.current = isShooting;
+  }, [isShooting]);
+
   const orbitStartTime = useRef(Date.now());
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => gamePhaseRef.current === 'ORBIT_PHASE' && !isShootingRef.current,
+      onPanResponderGrant: () => {
+        setIsDragging(true);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const dx = gestureState.dx;
+        const dy = gestureState.dy;
+        // Simplified drag: We only care about direction for the fixed arrow
+        setCurrentDrag({ x: dx, y: dy });
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        setIsDragging(false);
+        
+        const dx = gestureState.dx;
+        const dy = gestureState.dy;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > 15) {
+          // Normalized direction
+          const nx = -dx / distance;
+          const ny = -dy / distance;
+          
+          setShotVector({ x: nx, y: ny });
+          setIsShooting(true);
+          setActiveProjectile(true);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        }
+      },
+    })
+  ).current;
 
   const handleModeSelect = (mode: 'LEVEL' | 'INFINITY') => {
     setGameMode(mode);
@@ -85,35 +140,13 @@ export default function App() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  const onProjectileHit = useCallback(() => {
+  const onProjectileHit = useCallback((bestSlotIdx: number) => {
     setActiveProjectile(false);
     setIsShooting(false);
     
     if (!currentLevelData) return;
     
     const orbit = currentLevelData.orbits[activeOrbitIndex];
-    // Calculate which slot was hit based on timing
-    const elapsed = Date.now() - orbitStartTime.current;
-    const currentRotation = (elapsed / orbit.rotationSpeed * 360) % 360;
-    
-    // Slots are at 0, 120, 240 degrees. They rotate with the orbit.
-    // Target hitting point is top (0 degrees).
-    // The slot index that is closest to 0 degrees when rotated:
-    // slotAngle = (i * 120 + currentRotation) % 360
-    // We want slotAngle to be close to 360 or 0.
-    
-    let bestSlotIdx = 0;
-    let minDiff = 360;
-    
-    for(let i=0; i<3; i++) {
-        const slotAngle = (i * 120 + currentRotation) % 360;
-        const diff = Math.min(Math.abs(slotAngle - 0), Math.abs(slotAngle - 360));
-        if (diff < minDiff) {
-            minDiff = diff;
-            bestSlotIdx = i;
-        }
-    }
-
     const slot = orbit.slots[bestSlotIdx];
     applyMathOp(slot.op, slot.value);
     
@@ -125,7 +158,14 @@ export default function App() {
 
     nextOrbit();
     orbitStartTime.current = Date.now();
-  }, [currentLevelData, activeOrbitIndex]);
+  }, [currentLevelData, activeOrbitIndex, nextOrbit, applyMathOp]);
+
+  const onProjectileMiss = useCallback(() => {
+    setActiveProjectile(false);
+    setIsShooting(false);
+    skipOrbit();
+    orbitStartTime.current = Date.now();
+  }, [skipOrbit]);
 
   const onMeteorCollision = () => {
     if (!currentLevelData) return;
@@ -141,8 +181,10 @@ export default function App() {
       <View style={styles.container}>
         <StarBackground />
         <View style={styles.menuContent}>
-          <Text style={styles.title}>MATH ORBIT HERO</Text>
-          <Text style={styles.subtitle}>UZAYDA MATEMATİK SAVAŞI</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>MATH ORBIT</Text>
+            <Text style={[styles.title, styles.heroTitle]}>HERO</Text>
+          </View>
           
           <TouchableOpacity 
             style={styles.menuButton} 
@@ -168,9 +210,15 @@ export default function App() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container, 
+      currentLevelData?.isBoss && { backgroundColor: '#1a0033' } // Dark purple for Boss
+    ]}>
       <StatusBar barStyle="light-content" />
       <StarBackground />
+      {currentLevelData?.isBoss && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 0, 0, 0.05)' }]} />
+      )}
       
       {/* HUD */}
       <SafeAreaView style={styles.hud}>
@@ -179,12 +227,17 @@ export default function App() {
             <Text style={styles.hudLabel}>{gameMode === 'LEVEL' ? 'BÖLÜM' : 'REKOR'}</Text>
             <Text style={styles.hudValue}>{gameMode === 'LEVEL' ? currentLevelIndex : highScore}</Text>
           </View>
-          {gameMode === 'INFINITY' && (
-            <View style={{ marginLeft: 20 }}>
-              <Text style={styles.hudLabel}>SKOR</Text>
-              <Text style={styles.hudValue}>{currentScore}</Text>
+          
+          <View style={styles.centralHud}>
+            <Text style={styles.hudLabel}>KALAN YÖRÜNGE</Text>
+            <View style={styles.orbitalCounter}>
+              <Text style={styles.orbitalValue}>
+                {currentLevelData ? Math.max(0, currentLevelData.orbits.length - activeOrbitIndex) : 0}
+              </Text>
+              <Rocket size={16} color={COLORS.primary} style={{ marginLeft: 5 }} />
             </View>
-          )}
+          </View>
+
           <View style={{ alignItems: 'flex-end', flex: 1 }}>
             <Text style={styles.hudLabel}>GÜÇ PUANI</Text>
             <Text style={[styles.hudValue, { color: COLORS.primary }]}>{heroPower}</Text>
@@ -192,20 +245,20 @@ export default function App() {
         </View>
       </SafeAreaView>
 
-      <TouchableOpacity 
-        activeOpacity={1} 
-        onPress={fireShot} 
+      <View 
+        {...panResponder.panHandlers}
         style={styles.gameArea}
       >
-        {gamePhase === 'ORBIT_PHASE' && currentLevelData?.orbits.map((orbit, idx) => (
+        {gamePhase === 'ORBIT_PHASE' && currentLevelData && (
           <Orbit 
-            key={idx}
-            radius={orbit.radius}
-            rotationSpeed={orbit.rotationSpeed}
-            slots={orbit.slots}
-            isActive={idx === activeOrbitIndex}
+            key={activeOrbitIndex}
+            radius={currentLevelData.orbits[activeOrbitIndex].radius}
+            rotationSpeed={currentLevelData.orbits[activeOrbitIndex].rotationSpeed}
+            slots={currentLevelData.orbits[activeOrbitIndex].slots}
+            isActive={true}
+            initialRotation={currentLevelData.orbits[activeOrbitIndex].initialRotation}
           />
-        ))}
+        )}
 
         {gamePhase === 'METEOR_PHASE' && (
             <Meteor 
@@ -217,16 +270,36 @@ export default function App() {
 
         <Hero 
           value={heroPower} 
-          isShooting={isShooting} 
+          isShooting={isShooting}
+          dragVector={isDragging ? currentDrag : null}
         />
 
         {activeProjectile && currentLevelData && (
             <Projectile 
-                targetRadius={currentLevelData.orbits[activeOrbitIndex].radius}
+                initialVelocity={shotVector}
+                activeOrbitRadius={currentLevelData.orbits[activeOrbitIndex].radius}
+                allOrbits={currentLevelData.orbits}
+                activeOrbitIndex={activeOrbitIndex}
                 onHit={onProjectileHit}
+                onMiss={onProjectileMiss}
+                onWrongOrbit={() => setShowTutorialWarning(true)}
+                orbitStartTime={orbitStartTime.current}
             />
         )}
-      </TouchableOpacity>
+      </View>
+
+      {/* Input Overlay - Ensures touches are captured from anywhere */}
+      {gamePhase === 'ORBIT_PHASE' && !isShooting && (
+        <View 
+            {...panResponder.panHandlers}
+            style={StyleSheet.absoluteFill}
+        />
+      )}
+
+      <TutorialAlert 
+        visible={showTutorialWarning} 
+        onHide={() => setShowTutorialWarning(false)} 
+      />
 
       {/* Overlay Screens */}
       {(gamePhase === 'WIN' || gamePhase === 'GAME_OVER') && (
@@ -243,8 +316,11 @@ export default function App() {
             </Text>
             
             <TouchableOpacity 
-                style={[styles.overlayButton, { backgroundColor: gamePhase === 'WIN' ? COLORS.success : COLORS.danger }]}
-                onPress={() => gamePhase === 'WIN' ? startLevel(currentLevelIndex + 1) : resetToMenu()}
+                style={[
+                    styles.overlayButton, 
+                    { backgroundColor: gamePhase === 'WIN' ? COLORS.success : COLORS.danger }
+                ]}
+                onPress={() => gamePhase === 'WIN' ? startLevel() : resetToMenu()}
             >
                 <Text style={styles.overlayButtonText}>
                     {gamePhase === 'WIN' ? 'SIRADAKİ BÖLÜM' : 'MENÜYE DÖN'}
@@ -275,11 +351,14 @@ const styles = StyleSheet.create({
     textShadowColor: COLORS.primary,
     textShadowRadius: 20,
     marginBottom: 5,
+    textAlign: 'center',
   },
-  subtitle: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    letterSpacing: 4,
+  heroTitle: {
+    fontSize: 52,
+    marginTop: -10,
+  },
+  titleContainer: {
+    alignItems: 'center',
     marginBottom: 50,
   },
   menuButton: {
@@ -326,6 +405,27 @@ const styles = StyleSheet.create({
   hudValue: {
     color: '#fff',
     fontSize: 28,
+    fontWeight: '900',
+  },
+  centralHud: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  orbitalCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginTop: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  orbitalValue: {
+    color: '#fff',
+    fontSize: 24,
     fontWeight: '900',
   },
   gameArea: {

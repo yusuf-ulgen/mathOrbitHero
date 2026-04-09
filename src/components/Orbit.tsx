@@ -15,19 +15,20 @@ interface OrbitProps {
   rotationSpeed: number;
   slots: MathSlot[];
   isActive: boolean;
+  initialRotation: number;
 }
 
-export const Orbit: React.FC<OrbitProps> = memo(({ radius, rotationSpeed, slots, isActive }) => {
-  const rotation = useSharedValue(0);
+export const Orbit: React.FC<OrbitProps> = memo(({ radius, rotationSpeed, slots, isActive, initialRotation }) => {
+  const rotation = useSharedValue(initialRotation);
 
   useEffect(() => {
-    rotation.value = 0;
+    rotation.value = initialRotation;
     rotation.value = withRepeat(
-      withTiming(360, { duration: rotationSpeed, easing: Easing.linear }),
+      withTiming(initialRotation + 360, { duration: rotationSpeed, easing: Easing.linear }),
       -1,
       false
     );
-  }, [rotationSpeed]);
+  }, [rotationSpeed, initialRotation]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
@@ -49,24 +50,36 @@ export const Orbit: React.FC<OrbitProps> = memo(({ radius, rotationSpeed, slots,
       
       <Animated.View style={[styles.content, animatedStyle]}>
         {slots.map((slot, i) => {
-          const angle = i * 120; // 3 slots
+          const angle = i * 120; // 3 segments
           const isNegative = slot.op === '-' || slot.op === '/';
+          const color = isNegative ? COLORS.danger : COLORS.success;
           
           return (
             <View key={`slot-${i}`} style={[
-              styles.item, 
-              { transform: [{ rotate: `${angle}deg` }, { translateY: -radius }] }
+              styles.segment, 
+              { transform: [{ rotate: `${angle}deg` }] }
             ]}>
+              {/* Segment visual arc approximation */}
               <View style={[
-                styles.slotBox,
-                { borderColor: isNegative ? COLORS.danger : COLORS.success }
+                  styles.segmentArc, 
+                  { borderColor: color, opacity: isActive ? 0.8 : 0.3 }
+              ]} />
+              
+              <View style={[
+                styles.item,
+                { transform: [{ translateY: -radius }] }
               ]}>
-                <Text style={[
-                  styles.slotText,
-                  { color: isNegative ? COLORS.danger : COLORS.success }
+                <View style={[
+                  styles.slotBox,
+                  { borderColor: color, shadowColor: color }
                 ]}>
-                  {slot.label}
-                </Text>
+                  <Text style={[
+                    styles.slotText,
+                    { color: color }
+                  ]}>
+                    {slot.label}
+                  </Text>
+                </View>
               </View>
             </View>
           );
@@ -92,23 +105,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  segment: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  segmentArc: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 1000,
+    borderWidth: 6,
+    borderTopColor: 'transparent',
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    // The bottom border acts as the arc
+    transform: [{ rotate: '180deg' }], 
+  },
   item: {
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
   },
   slotBox: {
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    minWidth: 50,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    minWidth: 60,
     alignItems: 'center',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
   },
   slotText: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    textShadowRadius: 5,
+    fontWeight: '900',
+    fontSize: 18,
+    textShadowRadius: 10,
   },
 });

@@ -12,6 +12,7 @@ interface GameState {
   gamePhase: 'MENU' | 'ORBIT_PHASE' | 'METEOR_PHASE' | 'GAME_OVER' | 'WIN';
   currentLevelData: LevelConfig | null;
   activeOrbitIndex: number;
+  showTutorialWarning: boolean;
   
   // Actions
   setGameMode: (mode: 'LEVEL' | 'INFINITY') => void;
@@ -21,6 +22,8 @@ interface GameState {
   completeLevel: (success: boolean) => void;
   setGamePhase: (phase: GameState['gamePhase']) => void;
   resetToMenu: () => void;
+  skipOrbit: () => void;
+  setShowTutorialWarning: (show: boolean) => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -34,6 +37,7 @@ export const useGameStore = create<GameState>()(
       gamePhase: 'MENU',
       currentLevelData: null,
       activeOrbitIndex: 0,
+      showTutorialWarning: false,
 
       setGameMode: (mode) => set({ gameMode: mode, currentScore: 0 }),
 
@@ -92,7 +96,17 @@ export const useGameStore = create<GameState>()(
 
       setGamePhase: (phase) => set({ gamePhase: phase }),
 
-      resetToMenu: () => set({ gamePhase: 'MENU', gameMode: null, currentLevelData: null }),
+      resetToMenu: () => set({ gamePhase: 'MENU', gameMode: null, currentLevelData: null, showTutorialWarning: false }),
+
+      skipOrbit: () => set((state) => {
+        const isLastOrbit = state.activeOrbitIndex === (state.currentLevelData?.orbits.length || 0) - 1;
+        if (isLastOrbit) {
+          return { gamePhase: 'METEOR_PHASE' };
+        }
+        return { activeOrbitIndex: state.activeOrbitIndex + 1 };
+      }),
+
+      setShowTutorialWarning: (show) => set({ showTutorialWarning: show }),
     }),
     {
       name: 'math-orbit-hero-storage',
