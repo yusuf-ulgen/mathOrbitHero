@@ -185,11 +185,11 @@ export const GameScreen = ({ route, navigation }: any) => {
       <ScreenShake active={shake}>
         <View style={styles.hud}>
           <View style={styles.hudItem}>
-            <View style={{ width: 20, height: 20, backgroundColor: COLORS.primary }} />
+            <Zap color={COLORS.primary} size={20} />
             <Text style={styles.hudText}>{heroPower}</Text>
           </View>
           <View style={styles.hudItem}>
-            <View style={{ width: 20, height: 20, backgroundColor: COLORS.secondary }} />
+            <Timer color={COLORS.secondary} size={20} />
             <Text style={[styles.hudText, timeLeft < 10 ? { color: COLORS.danger } : null]}>
               {timeLeft}s
             </Text>
