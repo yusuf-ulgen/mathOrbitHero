@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -6,7 +6,6 @@ import {
   TouchableOpacity, 
   Dimensions, 
   PanResponder,
-  Animated as RNAnimated
 } from 'react-native';
 import { useGameStore } from '../store/useGameStore';
 import { generateLevel, LevelConfig } from '../utils/levelGenerator';
@@ -14,7 +13,7 @@ import { COLORS } from '../constants/theme';
 import { Orbit } from '../components/Orbit';
 import { Hero } from '../components/Hero';
 import { ScreenShake } from '../components/Effects';
-import { ArrowLeft, Timer, Zap } from 'lucide-react-native';
+import { Timer, Zap } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 const { width, height } = Dimensions.get('window');
@@ -27,14 +26,17 @@ export const GameScreen = ({ route, navigation }: any) => {
     heroPower, 
     updateHeroPower, 
     addGold, 
-    progressLevel, 
-    setGameState,
-    gameState 
+    completeLevel, 
+    setGamePhase,
+    gamePhase,
+    levelsSinceLastDrop, 
+    incrementPityTimer, 
+    resetPityTimer
   } = useGameStore();
 
-  const [timeLeft, setTimeLeft] = useState(config.timeLimit);
+  const [timeLeft, setTimeLeft] = useState(30); // Default time limit
   const [activeOrbitIndex, setActiveOrbitIndex] = useState(0);
-  const [orbitalsLeft, setOrbitalsLeft] = useState(config.orbitals.length);
+  const [orbitsLeft, setOrbitsLeft] = useState(config.orbits.length);
   const [shake, setShake] = useState(false);
   const [score, setScore] = useState(0);
 
@@ -47,7 +49,7 @@ export const GameScreen = ({ route, navigation }: any) => {
       setTimeLeft((prev) => {
         if (prev <= 0) {
           clearInterval(timer);
-          handleGameOver('FAILED');
+          handleGameOver(false);
           return 0;
         }
         return prev - 1;
@@ -56,14 +58,12 @@ export const GameScreen = ({ route, navigation }: any) => {
     return () => clearInterval(timer);
   }, []);
 
-  const handleGameOver = (state: 'WIN' | 'FAILED') => {
-    if (state === 'WIN') {
+  const handleGameOver = (success: boolean) => {
+    if (success) {
         const goldEarned = Math.floor(score / 10);
         addGold(goldEarned);
-        progressLevel();
     }
-    setGameState(state);
-    // navigation.pop(); // Handled by modals later
+    completeLevel(success);
   };
 
   const panResponder = PanResponder.create({
@@ -89,47 +89,35 @@ export const GameScreen = ({ route, navigation }: any) => {
     const dx = dragCurrent.x - dragStart.x;
     const dy = dragCurrent.y - dragStart.y;
     
-    // Shoot in opposite direction
     const angle = Math.atan2(-dy, -dx);
-    const speed = Math.sqrt(dx * dx + dy * dy) / 10;
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    // Simulate projectile movement and collision
-    // For now, we'll use a simple "timed" collision check
-    // In a full implementation, we'd use a Projectile component with its own animation
-    
-    const activeOrbit = config.orbitals[activeOrbitIndex];
+    const activeOrbit = config.orbits[activeOrbitIndex];
     if (!activeOrbit) return;
 
-    // Determine which slice is currently at the collision point
-    // We assume the collision happens at the 'top' (0 degrees relative to center)
-    // We need to account for orbital rotation
     const rotationPerMs = 360 / activeOrbit.rotationSpeed;
-    const elapsed = Date.now() % activeOrbit.rotationSpeed;
+    const elapsed = (Date.now() + activeOrbit.initialRotation * (activeOrbit.rotationSpeed / 360)) % activeOrbit.rotationSpeed;
     const currentRotation = (elapsed * rotationPerMs) % 360;
     
-    // Normalize target angle (where we shot)
     let shotAngle = (angle * 180 / Math.PI + 90) % 360;
     if (shotAngle < 0) shotAngle += 360;
 
-    // Calculate which slice was at shotAngle
-    // Slice 0 is at 0 deg, Slice 1 at 120, Slice 2 at 240
-    // But they are rotated by currentRotation
-    const sliceAngle = (shotAngle - currentRotation + 360) % 360;
-    const hitIndex = Math.floor(sliceAngle / 120) % 3;
+    const slotAngle = (shotAngle - currentRotation + 360) % 360;
+    const hitIndex = Math.floor(slotAngle / 120) % 3;
     
-    const op = activeOrbit.slices[hitIndex].operation;
-    updateHeroPower(op);
+    const slot = activeOrbit.slots[hitIndex];
+    updateHeroPower(slot.label);
+    
     setScore(s => s + 100);
     setShake(true);
     setTimeout(() => setShake(false), 200);
 
-    if (activeOrbitIndex < config.orbitals.length - 1) {
+    if (activeOrbitIndex < config.orbits.length - 1) {
       setActiveOrbitIndex(prev => prev + 1);
-      setOrbitalsLeft(prev => prev - 1);
+      setOrbitsLeft(prev => prev - 1);
     } else {
-      setOrbitalsLeft(0);
+      setOrbitsLeft(0);
       handleBattlePhase();
     }
   };
@@ -158,13 +146,12 @@ export const GameScreen = ({ route, navigation }: any) => {
     );
   };
 
-  const { levelsSinceLastDrop, incrementPityTimer, resetPityTimer } = useGameStore();
   const [droppedSkill, setDroppedSkill] = useState<{ id: string, name: string, description: string } | null>(null);
 
   const handleBattlePhase = () => {
-    setGameState('BATTLE');
+    setGamePhase('METEOR_PHASE');
     setTimeout(() => {
-       if (heroPower >= config.enemyHealth) {
+       if (heroPower >= config.meteorHealth) {
           const rng = Math.random();
           const pityTriggered = levelsSinceLastDrop >= 20;
           if (rng < 0.1 || pityTriggered) {
@@ -173,9 +160,9 @@ export const GameScreen = ({ route, navigation }: any) => {
           } else {
              incrementPityTimer();
           }
-          handleGameOver('WIN');
+          handleGameOver(true);
        } else {
-          handleGameOver('FAILED');
+          handleGameOver(false);
        }
     }, 1000);
   };
@@ -200,36 +187,41 @@ export const GameScreen = ({ route, navigation }: any) => {
         </View>
 
         <View style={styles.orbitCounter}>
-            <Text style={styles.counterText}>ORBITALS: {orbitalsLeft}</Text>
+            <Text style={styles.counterText}>ORBITS: {orbitsLeft}</Text>
         </View>
 
         <View style={styles.gameArea}>
-          {config.orbitals.map((orbit, idx) => (
+          {config.orbits.map((orbit, idx) => (
             <Orbit 
               key={idx}
               radius={orbit.radius}
               rotationSpeed={orbit.rotationSpeed}
-              slices={orbit.slices}
+              slots={orbit.slots}
               isActive={idx === activeOrbitIndex}
+              initialRotation={orbit.initialRotation}
             />
           ))}
-          <Hero value={heroPower} isDashing={dragStart !== null} />
+          <Hero 
+            value={heroPower} 
+            isShooting={dragStart !== null} 
+            dragVector={dragStart && dragCurrent ? { x: dragCurrent.x - dragStart.x, y: dragCurrent.y - dragStart.y } : null}
+          />
           
           {renderTrajectory()}
 
-          {gameState === 'BATTLE' && (
+          {gamePhase === 'METEOR_PHASE' && (
              <View style={styles.enemyContainer}>
-                <Text style={styles.enemyHealth}>👾 {config.enemyHealth}</Text>
+                <Text style={styles.enemyHealth}>👾 {config.meteorHealth}</Text>
                 <View style={styles.enemyShape} />
              </View>
           )}
         </View>
 
-        {(gameState === 'WIN' || gameState === 'FAILED') && (
+        {(gamePhase === 'WIN' || gamePhase === 'GAME_OVER') && (
            <View style={styles.modalOverlay}>
               <View style={styles.modal}>
                  <Text style={styles.modalTitle}>
-                    {gameState === 'WIN' ? 'MISSION SUCCESS' : 'MISSION FAILED'}
+                    {gamePhase === 'WIN' ? 'MISSION SUCCESS' : 'MISSION FAILED'}
                  </Text>
                  <Text style={styles.modalScore}>Score: {score}</Text>
                  
@@ -244,7 +236,7 @@ export const GameScreen = ({ route, navigation }: any) => {
                     <TouchableOpacity style={styles.modalButton} onPress={() => navigation.goBack()}>
                        <Text style={styles.buttonText}>MENU</Text>
                     </TouchableOpacity>
-                    {gameState === 'WIN' ? (
+                    {gamePhase === 'WIN' ? (
                        <TouchableOpacity 
                          style={[styles.modalButton, { backgroundColor: COLORS.primary }]}
                          onPress={() => navigation.replace('Game', { level: level + 1 })}
@@ -407,5 +399,3 @@ const styles = StyleSheet.create({
      marginTop: 5,
   }
 });
-
-

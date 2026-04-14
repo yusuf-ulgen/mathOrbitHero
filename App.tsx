@@ -1,28 +1,10 @@
-<<<<<<< HEAD
-import React from 'react';
-import { View } from 'react-native';
-import { GameScreen } from './src/screens/GameScreen';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-
-export default function App() {
-  // Mock route for testing GameScreen without navigation
-  const mockRoute = { params: { level: 1 } };
-  
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <GameScreen route={mockRoute} navigation={{ navigate: () => {}, goBack: () => {} } as any} />
-    </GestureHandlerRootView>
-  );
-}
-
-=======
 import React, { useState, useCallback, useRef, memo } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  StatusBar, 
-  TouchableOpacity, 
-  Dimensions, 
+import {
+  StyleSheet,
+  View,
+  StatusBar,
+  TouchableOpacity,
+  Dimensions,
   Text,
   SafeAreaView,
   PanResponder,
@@ -51,8 +33,8 @@ const StarBackground = memo(() => {
   return (
     <View style={StyleSheet.absoluteFill}>
       {stars.map((star, i) => (
-        <View 
-          key={i} 
+        <View
+          key={i}
           style={{
             position: 'absolute',
             top: star.top,
@@ -62,7 +44,7 @@ const StarBackground = memo(() => {
             borderRadius: star.size / 2,
             backgroundColor: COLORS.star,
             opacity: star.opacity,
-          }} 
+          }}
         />
       ))}
     </View>
@@ -70,14 +52,14 @@ const StarBackground = memo(() => {
 });
 
 export default function App() {
-  const { 
-    heroPower, 
-    currentLevelIndex, 
+  const {
+    heroPower,
+    currentLevelIndex,
     highScore,
     currentScore,
-    gamePhase, 
+    gamePhase,
     gameMode,
-    currentLevelData, 
+    currentLevelData,
     activeOrbitIndex,
     startLevel,
     setGameMode,
@@ -97,7 +79,7 @@ export default function App() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [currentDrag, setCurrentDrag] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  
+
   const gamePhaseRef = useRef(gamePhase);
   const isShootingRef = useRef(isShooting);
 
@@ -125,7 +107,7 @@ export default function App() {
       },
       onPanResponderRelease: (_, gestureState) => {
         setIsDragging(false);
-        
+
         const dx = gestureState.dx;
         const dy = gestureState.dy;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -134,7 +116,7 @@ export default function App() {
           // Normalized direction
           const nx = -dx / distance;
           const ny = -dy / distance;
-          
+
           setShotVector({ x: nx, y: ny });
           setIsShooting(true);
           setActiveProjectile(true);
@@ -152,7 +134,7 @@ export default function App() {
 
   const fireShot = () => {
     if (gamePhase !== 'ORBIT_PHASE' || isShooting) return;
-    
+
     setIsShooting(true);
     setActiveProjectile(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -161,17 +143,17 @@ export default function App() {
   const onProjectileHit = useCallback((bestSlotIdx: number) => {
     setActiveProjectile(false);
     setIsShooting(false);
-    
+
     if (!currentLevelData) return;
-    
+
     const orbit = currentLevelData.orbits[activeOrbitIndex];
     const slot = orbit.slots[bestSlotIdx];
     applyMathOp(slot.op, slot.value);
-    
+
     if (slot.op === '-' || slot.op === '/') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
 
     nextOrbit();
@@ -187,7 +169,7 @@ export default function App() {
 
   const onMeteorCollision = () => {
     if (!currentLevelData) return;
-    
+
     const isSuccess = heroPower >= currentLevelData.meteorHealth;
     completeLevel(isSuccess);
     Haptics.notificationAsync(isSuccess ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
@@ -203,17 +185,17 @@ export default function App() {
             <Text style={styles.title}>MATH ORBIT</Text>
             <Text style={[styles.title, styles.heroTitle]}>HERO</Text>
           </View>
-          
-          <TouchableOpacity 
-            style={styles.menuButton} 
+
+          <TouchableOpacity
+            style={styles.menuButton}
             onPress={() => handleModeSelect('LEVEL')}
           >
             <Play color="#fff" size={24} />
             <Text style={styles.menuButtonText}>BÖLÜM MODU ({currentLevelIndex})</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.menuButton, { borderColor: COLORS.secondary }]} 
+          <TouchableOpacity
+            style={[styles.menuButton, { borderColor: COLORS.secondary }]}
             onPress={() => handleModeSelect('INFINITY')}
           >
             <InfinityIcon color="#fff" size={24} />
@@ -229,7 +211,7 @@ export default function App() {
 
   return (
     <View style={[
-      styles.container, 
+      styles.container,
       currentLevelData?.isBoss && { backgroundColor: '#1a0033' } // Dark purple for Boss
     ]}>
       <StatusBar barStyle="light-content" />
@@ -237,7 +219,7 @@ export default function App() {
       {currentLevelData?.isBoss && (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 0, 0, 0.05)' }]} />
       )}
-      
+
       {/* HUD */}
       <SafeAreaView style={styles.hud}>
         <View style={styles.hudRow}>
@@ -245,7 +227,7 @@ export default function App() {
             <Text style={styles.hudLabel}>{gameMode === 'LEVEL' ? 'BÖLÜM' : 'REKOR'}</Text>
             <Text style={styles.hudValue}>{gameMode === 'LEVEL' ? currentLevelIndex : highScore}</Text>
           </View>
-          
+
           <View style={styles.centralHud}>
             <Text style={styles.hudLabel}>KALAN YÖRÜNGE</Text>
             <View style={styles.orbitalCounter}>
@@ -263,12 +245,12 @@ export default function App() {
         </View>
       </SafeAreaView>
 
-      <View 
+      <View
         {...panResponder.panHandlers}
         style={styles.gameArea}
       >
         {gamePhase === 'ORBIT_PHASE' && currentLevelData && (
-          <Orbit 
+          <Orbit
             key={activeOrbitIndex}
             radius={currentLevelData.orbits[activeOrbitIndex].radius}
             rotationSpeed={currentLevelData.orbits[activeOrbitIndex].rotationSpeed}
@@ -279,44 +261,44 @@ export default function App() {
         )}
 
         {gamePhase === 'METEOR_PHASE' && (
-            <Meteor 
-                health={currentLevelData?.meteorHealth || 0}
-                currentPower={heroPower}
-                onCollision={onMeteorCollision}
-            />
+          <Meteor
+            health={currentLevelData?.meteorHealth || 0}
+            currentPower={heroPower}
+            onCollision={onMeteorCollision}
+          />
         )}
 
-        <Hero 
-          value={heroPower} 
+        <Hero
+          value={heroPower}
           isShooting={isShooting}
           dragVector={isDragging ? currentDrag : null}
         />
 
         {activeProjectile && currentLevelData && (
-            <Projectile 
-                initialVelocity={shotVector}
-                activeOrbitRadius={currentLevelData.orbits[activeOrbitIndex].radius}
-                allOrbits={currentLevelData.orbits}
-                activeOrbitIndex={activeOrbitIndex}
-                onHit={onProjectileHit}
-                onMiss={onProjectileMiss}
-                onWrongOrbit={() => setShowTutorialWarning(true)}
-                orbitStartTime={orbitStartTime.current}
-            />
+          <Projectile
+            initialVelocity={shotVector}
+            activeOrbitRadius={currentLevelData.orbits[activeOrbitIndex].radius}
+            allOrbits={currentLevelData.orbits}
+            activeOrbitIndex={activeOrbitIndex}
+            onHit={onProjectileHit}
+            onMiss={onProjectileMiss}
+            onWrongOrbit={() => setShowTutorialWarning(true)}
+            orbitStartTime={orbitStartTime.current}
+          />
         )}
       </View>
 
       {/* Input Overlay - Ensures touches are captured from anywhere */}
       {gamePhase === 'ORBIT_PHASE' && !isShooting && (
-        <View 
-            {...panResponder.panHandlers}
-            style={StyleSheet.absoluteFill}
+        <View
+          {...panResponder.panHandlers}
+          style={StyleSheet.absoluteFill}
         />
       )}
 
-      <TutorialAlert 
-        visible={showTutorialWarning} 
-        onHide={() => setShowTutorialWarning(false)} 
+      <TutorialAlert
+        visible={showTutorialWarning}
+        onHide={() => setShowTutorialWarning(false)}
       />
 
       {/* Overlay Screens */}
@@ -325,24 +307,24 @@ export default function App() {
           <View style={styles.overlayBox}>
             <Trophy color={gamePhase === 'WIN' ? COLORS.success : COLORS.danger} size={64} />
             <Text style={styles.overlayTitle}>
-                {gamePhase === 'WIN' ? 'TEBRİKLER!' : 'OUN BİTTİ'}
+              {gamePhase === 'WIN' ? 'TEBRİKLER!' : 'OUN BİTTİ'}
             </Text>
             <Text style={styles.overlaySub}>
-                {gamePhase === 'WIN' 
-                    ? `Bölüm ${currentLevelIndex} tamamlandı!` 
-                    : `Göktaşı gücü (${currentLevelData?.meteorHealth}) senin gücünden (${heroPower}) fazlaydı.`}
+              {gamePhase === 'WIN'
+                ? `Bölüm ${currentLevelIndex} tamamlandı!`
+                : `Göktaşı gücü (${currentLevelData?.meteorHealth}) senin gücünden (${heroPower}) fazlaydı.`}
             </Text>
-            
-            <TouchableOpacity 
-                style={[
-                    styles.overlayButton, 
-                    { backgroundColor: gamePhase === 'WIN' ? COLORS.success : COLORS.danger }
-                ]}
-                onPress={() => gamePhase === 'WIN' ? startLevel() : resetToMenu()}
+
+            <TouchableOpacity
+              style={[
+                styles.overlayButton,
+                { backgroundColor: gamePhase === 'WIN' ? COLORS.success : COLORS.danger }
+              ]}
+              onPress={() => gamePhase === 'WIN' ? startLevel() : resetToMenu()}
             >
-                <Text style={styles.overlayButtonText}>
-                    {gamePhase === 'WIN' ? 'SIRADAKİ BÖLÜM' : 'MENÜYE DÖN'}
-                </Text>
+              <Text style={styles.overlayButtonText}>
+                {gamePhase === 'WIN' ? 'SIRADAKİ BÖLÜM' : 'MENÜYE DÖN'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -493,4 +475,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
->>>>>>> 9e0da47b4f159a8f31eb1bc220f72c2cbfbc5a2e

@@ -15,37 +15,21 @@ interface HeroProps {
   dragVector: { x: number; y: number } | null;
 }
 
-<<<<<<< HEAD
-export const Hero: React.FC<HeroProps> = ({ value, isDashing = false }) => {
-=======
 export const Hero: React.FC<HeroProps> = memo(({ value, isShooting, dragVector }) => {
->>>>>>> 9e0da47b4f159a8f31eb1bc220f72c2cbfbc5a2e
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
         { scale: withSpring(isShooting ? 0.8 : 1) },
         { translateY: withSequence(withTiming(isShooting ? -5 : 0, { duration: 50 }), withSpring(0)) }
       ],
-<<<<<<< HEAD
-      opacity: withTiming(isDashing ? 1 : 0.8),
-=======
->>>>>>> 9e0da47b4f159a8f31eb1bc220f72c2cbfbc5a2e
     };
   });
 
   return (
-<<<<<<< HEAD
-    <Animated.View style={[styles.container, animatedStyle]}>
-      <View style={styles.glow} />
-      <View style={{ width: 32, height: 32, backgroundColor: COLORS.primary, borderRadius: 16 }} />
-      <View style={styles.valueBadge}>
-        <Text style={styles.valueText}>{value}</Text>
-=======
     <View style={styles.container}>
       {/* Power Label Above Head */}
       <View style={styles.powerLabel}>
         <Text style={styles.powerText}>{value}</Text>
->>>>>>> 9e0da47b4f159a8f31eb1bc220f72c2cbfbc5a2e
       </View>
       
       <Animated.View style={[styles.heroBody, animatedStyle]}>
@@ -114,8 +98,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     backgroundColor: COLORS.primary,
     opacity: 0.2,
-<<<<<<< HEAD
-=======
   },
   core: {
     width: 10,
@@ -123,21 +105,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#fff',
     position: 'absolute',
->>>>>>> 9e0da47b4f159a8f31eb1bc220f72c2cbfbc5a2e
-  },
-  valueBadge: {
-    position: 'absolute',
-    top: -10,
-    backgroundColor: COLORS.secondary,
-    paddingHorizontal: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-  valueText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   dragIndicator: {
     position: 'absolute',

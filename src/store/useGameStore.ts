@@ -3,83 +3,48 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LevelConfig, generateLevel, generateInfinityLevel, MathOp } from '../utils/levelGenerator';
 
-interface Skill {
-  id: string;
-  name: string;
-  description: string;
-  level: number;
-  maxLevel: number;
-  baseCost: number;
-}
-
 interface GameState {
-<<<<<<< HEAD
   // Stats
   heroPower: number;
   gold: number;
-  currentLevel: number;
-  score: number;
-=======
-  heroPower: number;
   currentLevelIndex: number;
->>>>>>> 9e0da47b4f159a8f31eb1bc220f72c2cbfbc5a2e
   highScore: number;
-  currentScore: number; // Tracks current run score for infinity
+  currentScore: number;
+
+  // Game Logic
   gameMode: 'LEVEL' | 'INFINITY' | null;
   gamePhase: 'MENU' | 'ORBIT_PHASE' | 'METEOR_PHASE' | 'GAME_OVER' | 'WIN';
   currentLevelData: LevelConfig | null;
   activeOrbitIndex: number;
   showTutorialWarning: boolean;
-  
+
   // Skill System
-  unlockedSkills: string[]; // skill IDs
+  unlockedSkills: string[];
   skillLevels: Record<string, number>;
   levelsSinceLastDrop: number;
 
-  // Game Progress
-  gameState: 'NAV' | 'PLAYING' | 'BATTLE' | 'FAILED' | 'WIN';
-  
   // Actions
-<<<<<<< HEAD
-  setGameState: (state: GameState['gameState']) => void;
-  updateHeroPower: (value: number | string) => void;
-  addGold: (amount: number) => void;
-  unlockSkill: (skillId: string) => void;
-  upgradeSkill: (skillId: string) => void;
-  progressLevel: () => void;
-  incrementPityTimer: () => void;
-  resetPityTimer: () => void;
-  resetGame: () => void;
-}
-
-export const useGameStore = create<GameState>((set) => ({
-  heroPower: 5,
-  gold: 0,
-  currentLevel: 1,
-  score: 0,
-  highScore: 0,
-  
-  unlockedSkills: [],
-  skillLevels: {},
-  levelsSinceLastDrop: 0,
-
-  gameState: 'NAV',
-=======
   setGameMode: (mode: 'LEVEL' | 'INFINITY') => void;
   startLevel: (level?: number) => void;
   applyMathOp: (op: MathOp, value: number) => void;
+  updateHeroPower: (opStr: string) => void;
   nextOrbit: () => void;
   completeLevel: (success: boolean) => void;
   setGamePhase: (phase: GameState['gamePhase']) => void;
   resetToMenu: () => void;
   skipOrbit: () => void;
   setShowTutorialWarning: (show: boolean) => void;
+  addGold: (amount: number) => void;
+  upgradeSkill: (skillId: string) => void;
+  incrementPityTimer: () => void;
+  resetPityTimer: () => void;
 }
 
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
       heroPower: 5,
+      gold: 0,
       currentLevelIndex: 1,
       highScore: 0,
       currentScore: 0,
@@ -88,62 +53,19 @@ export const useGameStore = create<GameState>()(
       currentLevelData: null,
       activeOrbitIndex: 0,
       showTutorialWarning: false,
->>>>>>> 9e0da47b4f159a8f31eb1bc220f72c2cbfbc5a2e
+      unlockedSkills: [],
+      skillLevels: {},
+      levelsSinceLastDrop: 0,
 
       setGameMode: (mode) => set({ gameMode: mode, currentScore: 0 }),
 
-<<<<<<< HEAD
-  updateHeroPower: (val) => set((state) => {
-    let newValue = state.heroPower;
-    if (typeof val === 'number') {
-      newValue += val;
-    } else {
-      const op = val[0];
-      const num = parseInt(val.slice(1));
-      if (op === 'x') newValue *= num;
-      if (op === '/') newValue = Math.floor(newValue / num);
-      if (op === '+') newValue += num;
-      if (op === '-') newValue -= num;
-    }
-    return { heroPower: Math.max(0, newValue) };
-  }),
-
-  addGold: (amount) => set((state) => ({ gold: state.gold + amount })),
-
-  unlockSkill: (skillId) => set((state) => ({
-    unlockedSkills: [...state.unlockedSkills, skillId],
-    skillLevels: { ...state.skillLevels, [skillId]: 1 }
-  })),
-
-  upgradeSkill: (skillId) => set((state) => ({
-    skillLevels: { ...state.skillLevels, [skillId]: (state.skillLevels[skillId] || 1) + 1 }
-  })),
-
-  progressLevel: () => set((state) => ({
-    currentLevel: state.currentLevel + 1,
-    levelsSinceLastDrop: state.levelsSinceLastDrop + 1
-  })),
-
-  incrementPityTimer: () => set((state) => ({ levelsSinceLastDrop: state.levelsSinceLastDrop + 1 })),
-  
-  resetPityTimer: () => set({ levelsSinceLastDrop: 0 }),
-
-  resetGame: () => set((state) => ({
-    heroPower: 5,
-    score: 0,
-    gameState: 'NAV',
-  })),
-}));
-
-=======
       startLevel: (level) => {
         const mode = get().gameMode;
         const currentLvl = get().currentLevelIndex;
         const score = get().currentScore;
-        
-        // Infinity starts easy and scales with current run score
-        const data = mode === 'INFINITY' 
-          ? generateInfinityLevel(score) 
+
+        const data = mode === 'INFINITY'
+          ? generateInfinityLevel(score)
           : generateLevel(level || currentLvl);
 
         set({
@@ -154,63 +76,107 @@ export const useGameStore = create<GameState>()(
         });
       },
 
-      applyMathOp: (op, value) => set((state) => {
-        let newPower = state.heroPower;
+      applyMathOp: (op, value) => {
+        const currentPower = get().heroPower;
+        let newPower = currentPower;
         if (op === '+') newPower += value;
         if (op === '-') newPower -= value;
         if (op === '*') newPower *= value;
         if (op === '/') newPower = Math.floor(newPower / value);
-        return { heroPower: Math.max(0, newPower) };
-      }),
+        set({ heroPower: Math.max(0, newPower) });
+      },
 
-      nextOrbit: () => set((state) => {
+      updateHeroPower: (opStr) => {
+        const opStrClean = opStr.trim();
+        const opChar = opStrClean[0];
+        const value = parseInt(opStrClean.slice(1));
+
+        let op: MathOp = '+';
+        if (opChar === 'x' || opChar === '*') op = '*';
+        else if (opChar === '/') op = '/';
+        else if (opChar === '-') op = '-';
+        else op = '+';
+
+        get().applyMathOp(op, value);
+      },
+
+      nextOrbit: () => {
+        const state = get();
         const isLastOrbit = state.activeOrbitIndex === (state.currentLevelData?.orbits.length || 0) - 1;
         if (isLastOrbit) {
-          return { gamePhase: 'METEOR_PHASE' };
+          set({ gamePhase: 'METEOR_PHASE' });
+        } else {
+          set({ activeOrbitIndex: state.activeOrbitIndex + 1 });
         }
-        return { activeOrbitIndex: state.activeOrbitIndex + 1 };
-      }),
+      },
 
-      completeLevel: (success) => set((state) => {
-        if (!success) return { gamePhase: 'GAME_OVER' };
-        
+      completeLevel: (success) => {
+        const state = get();
+        if (!success) {
+          set({ gamePhase: 'GAME_OVER' });
+          return;
+        }
+
+        const bonusGold = 10 + (state.currentLevelIndex * 5);
+
         if (state.gameMode === 'LEVEL') {
-          return { 
-            gamePhase: 'WIN', 
-            currentLevelIndex: state.currentLevelIndex + 1 
-          };
+          set({
+            gamePhase: 'WIN',
+            currentLevelIndex: state.currentLevelIndex + 1,
+            gold: state.gold + bonusGold
+          });
         } else {
           const newScore = state.currentScore + 1;
-          return { 
-            gamePhase: 'WIN', 
+          set({
+            gamePhase: 'WIN',
             currentScore: newScore,
-            highScore: Math.max(state.highScore, newScore) 
-          };
+            highScore: Math.max(state.highScore, newScore),
+            gold: state.gold + bonusGold
+          });
         }
-      }),
+      },
 
       setGamePhase: (phase) => set({ gamePhase: phase }),
 
-      resetToMenu: () => set({ gamePhase: 'MENU', gameMode: null, currentLevelData: null, showTutorialWarning: false }),
-
-      skipOrbit: () => set((state) => {
-        const isLastOrbit = state.activeOrbitIndex === (state.currentLevelData?.orbits.length || 0) - 1;
-        if (isLastOrbit) {
-          return { gamePhase: 'METEOR_PHASE' };
-        }
-        return { activeOrbitIndex: state.activeOrbitIndex + 1 };
+      resetToMenu: () => set({
+        gamePhase: 'MENU',
+        gameMode: null,
+        currentLevelData: null,
+        showTutorialWarning: false
       }),
 
+      skipOrbit: () => {
+        const state = get();
+        const isLastOrbit = state.activeOrbitIndex === (state.currentLevelData?.orbits.length || 0) - 1;
+        if (isLastOrbit) {
+          set({ gamePhase: 'METEOR_PHASE' });
+        } else {
+          set({ activeOrbitIndex: state.activeOrbitIndex + 1 });
+        }
+      },
+
       setShowTutorialWarning: (show) => set({ showTutorialWarning: show }),
+
+      addGold: (amount) => set((state) => ({ gold: state.gold + amount })),
+
+      upgradeSkill: (skillId) => set((state) => ({
+        skillLevels: { ...state.skillLevels, [skillId]: (state.skillLevels[skillId] || 1) + 1 }
+      })),
+
+      incrementPityTimer: () => set((state) => ({ levelsSinceLastDrop: state.levelsSinceLastDrop + 1 })),
+
+      resetPityTimer: () => set({ levelsSinceLastDrop: 0 }),
     }),
     {
       name: 'math-orbit-hero-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ 
-        currentLevelIndex: state.currentLevelIndex, 
-        highScore: state.highScore 
+      partialize: (state) => ({
+        currentLevelIndex: state.currentLevelIndex,
+        highScore: state.highScore,
+        gold: state.gold,
+        unlockedSkills: state.unlockedSkills,
+        skillLevels: state.skillLevels
       }),
     }
   )
 );
->>>>>>> 9e0da47b4f159a8f31eb1bc220f72c2cbfbc5a2e
