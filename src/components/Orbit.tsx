@@ -9,14 +9,19 @@ import Animated, {
 } from 'react-native-reanimated';
 import { COLORS } from '../constants/theme';
 
-interface OrbitProps {
-  radius: number;
-  rotationSpeed: number; // ms per revolution
-  gates: { value: string; angle: number }[];
-  enemies: { value: number; angle: number }[];
+interface Slice {
+  operation: string;
+  type: 'gate';
 }
 
-export const Orbit: React.FC<OrbitProps> = ({ radius, rotationSpeed, gates, enemies }) => {
+interface OrbitProps {
+  radius: number;
+  rotationSpeed: number;
+  slices: Slice[];
+  isActive: boolean;
+}
+
+export const Orbit: React.FC<OrbitProps> = ({ radius, rotationSpeed, slices, isActive }) => {
   const rotation = useSharedValue(0);
 
   useEffect(() => {
@@ -25,36 +30,42 @@ export const Orbit: React.FC<OrbitProps> = ({ radius, rotationSpeed, gates, enem
       -1,
       false
     );
-  }, []);
+  }, [rotationSpeed]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
+    opacity: isActive ? 1 : 0.3,
   }));
 
   return (
     <View style={[styles.container, { width: radius * 2, height: radius * 2 }]}>
-      <View style={[styles.ring, { width: radius * 2, height: radius * 2, borderRadius: radius }]} />
+      <View style={[
+        styles.ring, 
+        { 
+          width: radius * 2, 
+          height: radius * 2, 
+          borderRadius: radius,
+          borderColor: isActive ? COLORS.primary : 'rgba(255,255,255,0.1)',
+          borderWidth: isActive ? 2 : 1,
+        }
+      ]} />
       <Animated.View style={[styles.content, animatedStyle]}>
-        {gates.map((gate, i) => (
-          <View key={`gate-${i}`} style={[
-            styles.item, 
-            { transform: [{ rotate: `${gate.angle}deg` }, { translateY: -radius }] }
-          ]}>
-            <View style={styles.gateBox}>
-              <Text style={styles.gateText}>{gate.value}</Text>
+        {slices.map((slice, i) => {
+          const angle = i * 120;
+          return (
+            <View key={`slice-${i}`} style={[
+              styles.item, 
+              { transform: [{ rotate: `${angle}deg` }, { translateY: -radius }] }
+            ]}>
+              <View style={[
+                styles.gateBox,
+                isActive ? { borderColor: COLORS.primary } : null
+              ]}>
+                <Text style={styles.gateText}>{slice.operation}</Text>
+              </View>
             </View>
-          </View>
-        ))}
-        {enemies.map((enemy, i) => (
-          <View key={`enemy-${i}`} style={[
-            styles.item, 
-            { transform: [{ rotate: `${enemy.angle}deg` }, { translateY: -radius }] }
-          ]}>
-            <View style={styles.enemyBox}>
-              <Text style={styles.enemyText}>{enemy.value}</Text>
-            </View>
-          </View>
-        ))}
+          );
+        })}
       </Animated.View>
     </View>
   );
@@ -67,8 +78,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ring: {
-    borderWidth: 1,
-    borderColor: COLORS.orbit,
     position: 'absolute',
   },
   content: {
@@ -83,28 +92,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   gateBox: {
-    backgroundColor: COLORS.secondary,
-    padding: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#fff',
-    elevation: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   gateText: {
     color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  enemyBox: {
-    backgroundColor: COLORS.danger,
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-  enemyText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
+    fontWeight: '900',
+    fontSize: 18,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
 });
+

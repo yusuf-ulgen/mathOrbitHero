@@ -1,34 +1,62 @@
 import { create } from 'zustand';
 
+interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  level: number;
+  maxLevel: number;
+  baseCost: number;
+}
+
 interface GameState {
-  heroValue: number;
-  currentOrbit: number;
-  gameState: 'START' | 'PLAYING' | 'FAILED' | 'BOSS' | 'WIN';
+  // Stats
+  heroPower: number;
+  gold: number;
+  currentLevel: number;
   score: number;
   highScore: number;
   
+  // Skill System
+  unlockedSkills: string[]; // skill IDs
+  skillLevels: Record<string, number>;
+  levelsSinceLastDrop: number;
+
+  // Game Progress
+  gameState: 'NAV' | 'PLAYING' | 'BATTLE' | 'FAILED' | 'WIN';
+  
   // Actions
   setGameState: (state: GameState['gameState']) => void;
-  updateHeroValue: (value: number | string) => void;
-  nextOrbit: () => void;
+  updateHeroPower: (value: number | string) => void;
+  addGold: (amount: number) => void;
+  unlockSkill: (skillId: string) => void;
+  upgradeSkill: (skillId: string) => void;
+  progressLevel: () => void;
+  incrementPityTimer: () => void;
+  resetPityTimer: () => void;
   resetGame: () => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
-  heroValue: 10,
-  currentOrbit: 0,
-  gameState: 'START',
+  heroPower: 5,
+  gold: 0,
+  currentLevel: 1,
   score: 0,
   highScore: 0,
+  
+  unlockedSkills: [],
+  skillLevels: {},
+  levelsSinceLastDrop: 0,
+
+  gameState: 'NAV',
 
   setGameState: (state) => set({ gameState: state }),
 
-  updateHeroValue: (val) => set((state) => {
-    let newValue = state.heroValue;
+  updateHeroPower: (val) => set((state) => {
+    let newValue = state.heroPower;
     if (typeof val === 'number') {
       newValue += val;
     } else {
-      // Handle operators like 'x2' or '/2'
       const op = val[0];
       const num = parseInt(val.slice(1));
       if (op === 'x') newValue *= num;
@@ -36,18 +64,33 @@ export const useGameStore = create<GameState>((set) => ({
       if (op === '+') newValue += num;
       if (op === '-') newValue -= num;
     }
-    return { heroValue: Math.max(0, newValue) };
+    return { heroPower: Math.max(0, newValue) };
   }),
 
-  nextOrbit: () => set((state) => ({ 
-    currentOrbit: state.currentOrbit + 1,
-    score: state.score + 10 
+  addGold: (amount) => set((state) => ({ gold: state.gold + amount })),
+
+  unlockSkill: (skillId) => set((state) => ({
+    unlockedSkills: [...state.unlockedSkills, skillId],
+    skillLevels: { ...state.skillLevels, [skillId]: 1 }
   })),
 
-  resetGame: () => set({
-    heroValue: 10,
-    currentOrbit: 0,
-    gameState: 'START',
+  upgradeSkill: (skillId) => set((state) => ({
+    skillLevels: { ...state.skillLevels, [skillId]: (state.skillLevels[skillId] || 1) + 1 }
+  })),
+
+  progressLevel: () => set((state) => ({
+    currentLevel: state.currentLevel + 1,
+    levelsSinceLastDrop: state.levelsSinceLastDrop + 1
+  })),
+
+  incrementPityTimer: () => set((state) => ({ levelsSinceLastDrop: state.levelsSinceLastDrop + 1 })),
+  
+  resetPityTimer: () => set({ levelsSinceLastDrop: 0 }),
+
+  resetGame: () => set((state) => ({
+    heroPower: 5,
     score: 0,
-  }),
+    gameState: 'NAV',
+  })),
 }));
+

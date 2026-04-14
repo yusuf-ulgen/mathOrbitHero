@@ -15,21 +15,21 @@ interface HeroProps {
   isDashing: boolean;
 }
 
-export const Hero: React.FC<HeroProps> = ({ value, isDashing }) => {
+export const Hero: React.FC<HeroProps> = ({ value, isDashing = false }) => {
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
         { scale: withSpring(isDashing ? 1.2 : 1) },
         { translateY: withRepeat(withSequence(withTiming(-5), withTiming(0)), -1, true) }
       ],
-      shadowOpacity: withTiming(isDashing ? 0.8 : 0.4),
+      opacity: withTiming(isDashing ? 1 : 0.8),
     };
   });
 
   return (
     <Animated.View style={[styles.container, animatedStyle]}>
       <View style={styles.glow} />
-      <Rocket color={COLORS.primary} size={32} />
+      <View style={{ width: 32, height: 32, backgroundColor: COLORS.primary, borderRadius: 16 }} />
       <View style={styles.valueBadge}>
         <Text style={styles.valueText}>{value}</Text>
       </View>
@@ -52,7 +52,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     backgroundColor: COLORS.primary,
     opacity: 0.2,
-    blurRadius: 10,
   },
   valueBadge: {
     position: 'absolute',
