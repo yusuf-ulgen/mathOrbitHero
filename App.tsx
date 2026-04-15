@@ -1,3 +1,4 @@
+console.log("DEBUG: App.tsx module loading...");
 import React, { useState, useCallback, useRef, memo } from 'react';
 import {
   StyleSheet,
@@ -52,6 +53,7 @@ const StarBackground = memo(() => {
 });
 
 export default function App() {
+  console.log("DEBUG: App component rendering...");
   const {
     heroPower,
     currentLevelIndex,

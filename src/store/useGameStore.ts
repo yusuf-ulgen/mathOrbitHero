@@ -1,3 +1,4 @@
+console.log("DEBUG: useGameStore.ts module loading...");
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -42,8 +43,10 @@ interface GameState {
 
 export const useGameStore = create<GameState>()(
   persist(
-    (set, get) => ({
-      heroPower: 5,
+    (set, get) => {
+      console.log("DEBUG: Initializing store state...");
+      return {
+        heroPower: 5,
       gold: 0,
       currentLevelIndex: 1,
       highScore: 0,
@@ -166,7 +169,8 @@ export const useGameStore = create<GameState>()(
       incrementPityTimer: () => set((state) => ({ levelsSinceLastDrop: state.levelsSinceLastDrop + 1 })),
 
       resetPityTimer: () => set({ levelsSinceLastDrop: 0 }),
-    }),
+    };
+  },
     {
       name: 'math-orbit-hero-storage',
       storage: createJSONStorage(() => AsyncStorage),
