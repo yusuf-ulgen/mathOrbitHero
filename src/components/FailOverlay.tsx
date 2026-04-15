@@ -24,7 +24,7 @@ const MOCK_MESSAGES = [
 ];
 
 export const FailOverlay: React.FC = () => {
-  const { resetGame, heroValue } = useGameStore();
+  const { resetToMenu, heroPower } = useGameStore();
   const randomMsg = MOCK_MESSAGES[Math.floor(Math.random() * MOCK_MESSAGES.length)];
 
   const glowStyle = useAnimatedStyle(() => ({
@@ -46,10 +46,10 @@ export const FailOverlay: React.FC = () => {
         {randomMsg}
       </Animated.Text>
 
-      <Text style={styles.scoreText}>SCORE: {heroValue}</Text>
+      <Text style={styles.scoreText}>SCORE: {heroPower}</Text>
 
       <TouchableOpacity 
-        onPress={resetGame} 
+        onPress={resetToMenu} 
         style={styles.retryButton}
       >
         <Animated.View style={[styles.buttonGlow, glowStyle]} />

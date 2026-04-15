@@ -8,11 +8,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 const { width } = Dimensions.get('window');
 
 export const MapScreen = ({ navigation }: any) => {
-  const { currentLevel, gold } = useGameStore();
+  const { currentLevelIndex, gold } = useGameStore();
 
   const renderLevelNode = (levelNum: number) => {
-    const isUnlocked = levelNum <= currentLevel;
-    const isCurrent = levelNum === currentLevel;
+    const isUnlocked = levelNum <= currentLevelIndex;
+    const isCurrent = levelNum === currentLevelIndex;
 
     return (
       <View key={levelNum} style={styles.nodeWrapper}>

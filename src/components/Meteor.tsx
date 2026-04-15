@@ -43,7 +43,10 @@ export const Meteor: React.FC<MeteorProps> = memo(({ health, currentPower, onCol
           size={80} 
           color={canBeDestroyed ? COLORS.warning : COLORS.danger} 
         />
-        <View style={styles.healthTag}>
+        <View style={[
+          styles.healthTag, 
+          { backgroundColor: canBeDestroyed ? 'rgba(0,128,0,0.8)' : 'rgba(0,0,0,0.8)' }
+        ]}>
           <Text style={styles.healthText}>{health}</Text>
         </View>
         

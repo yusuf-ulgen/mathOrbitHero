@@ -1,4 +1,3 @@
-console.log("DEBUG: useGameStore.ts module loading...");
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,8 +14,8 @@ interface GameState {
   // Game Logic
   gameMode: 'LEVEL' | 'INFINITY' | null;
   gamePhase: 'MENU' | 'ORBIT_PHASE' | 'METEOR_PHASE' | 'GAME_OVER' | 'WIN';
-  currentLevelData: LevelConfig | null;
   activeOrbitIndex: number;
+  meteorCurrentHealth: number;
   showTutorialWarning: boolean;
 
   // Skill System
@@ -34,6 +33,7 @@ interface GameState {
   setGamePhase: (phase: GameState['gamePhase']) => void;
   resetToMenu: () => void;
   skipOrbit: () => void;
+  damageMeteor: (amount: number) => void;
   setShowTutorialWarning: (show: boolean) => void;
   addGold: (amount: number) => void;
   upgradeSkill: (skillId: string) => void;
@@ -43,10 +43,8 @@ interface GameState {
 
 export const useGameStore = create<GameState>()(
   persist(
-    (set, get) => {
-      console.log("DEBUG: Initializing store state...");
-      return {
-        heroPower: 5,
+    (set, get) => ({
+      heroPower: 5,
       gold: 0,
       currentLevelIndex: 1,
       highScore: 0,
@@ -55,6 +53,7 @@ export const useGameStore = create<GameState>()(
       gamePhase: 'MENU',
       currentLevelData: null,
       activeOrbitIndex: 0,
+      meteorCurrentHealth: 0,
       showTutorialWarning: false,
       unlockedSkills: [],
       skillLevels: {},
@@ -75,6 +74,7 @@ export const useGameStore = create<GameState>()(
           currentLevelData: data,
           gamePhase: 'ORBIT_PHASE',
           activeOrbitIndex: 0,
+          meteorCurrentHealth: data.meteorHealth,
           heroPower: 5,
         });
       },
@@ -158,6 +158,18 @@ export const useGameStore = create<GameState>()(
         }
       },
 
+      damageMeteor: (amount) => {
+        const state = get();
+        if (state.gamePhase !== 'METEOR_PHASE') return;
+        
+        const newHealth = Math.max(0, state.meteorCurrentHealth - amount);
+        set({ meteorCurrentHealth: newHealth });
+
+        if (newHealth <= 0) {
+          get().completeLevel(true);
+        }
+      },
+
       setShowTutorialWarning: (show) => set({ showTutorialWarning: show }),
 
       addGold: (amount) => set((state) => ({ gold: state.gold + amount })),
@@ -169,8 +181,7 @@ export const useGameStore = create<GameState>()(
       incrementPityTimer: () => set((state) => ({ levelsSinceLastDrop: state.levelsSinceLastDrop + 1 })),
 
       resetPityTimer: () => set({ levelsSinceLastDrop: 0 }),
-    };
-  },
+    }),
     {
       name: 'math-orbit-hero-storage',
       storage: createJSONStorage(() => AsyncStorage),

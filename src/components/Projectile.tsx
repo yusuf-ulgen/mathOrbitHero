@@ -21,6 +21,7 @@ interface ProjectileProps {
   onHit: (slotIndex: number) => void;
   onMiss: () => void;
   onWrongOrbit: () => void;
+  onMeteorHit?: () => void;
   orbitStartTime: number;
 }
 
@@ -31,6 +32,7 @@ export const Projectile: React.FC<ProjectileProps> = memo(({
     onHit, 
     onMiss,
     onWrongOrbit,
+    onMeteorHit,
     orbitStartTime
 }) => {
   const posX = useSharedValue(0);
@@ -39,6 +41,7 @@ export const Projectile: React.FC<ProjectileProps> = memo(({
   const lastDist = useSharedValue(0);
   
   const checkedOrbits = useSharedValue<number[]>([]);
+  const meteorHitDone = useSharedValue(false);
 
   useEffect(() => {
     // Projectile travels for 1.5 seconds at fixed speed
@@ -72,36 +75,42 @@ export const Projectile: React.FC<ProjectileProps> = memo(({
       allOrbits.forEach((orbit, idx) => {
         if (checkedOrbits.value.includes(idx)) return;
 
-        // Crossing check: did we pass the orbit radius in this frame?
-        // Add a tiny buffer (3 units) to the crossing check to be more robust against frame skipping
-        const crossed = (lastDist.value < orbit.radius - 3 && currentDist >= orbit.radius - 3);
+        // Crossing check: check if the radius is between last and current distance
+        const crossed = (lastDist.value <= orbit.radius && currentDist >= orbit.radius) || 
+                        (lastDist.value >= orbit.radius && currentDist <= orbit.radius);
 
         if (crossed) {
             const angleRad = Math.atan2(tx, -ty);
             let angleDeg = (angleRad * 180 / Math.PI);
             if (angleDeg < 0) angleDeg += 360;
 
-            // Sync with Orbit's internal rotation
             const now = new Date().getTime();
             const elapsed = now - orbitStartTime;
             const currentRotation = (orbit.initialRotation + (elapsed / orbit.rotationSpeed * 360)) % 360;
 
-            // Deterministic segment calculation: Every shot is a hit
-            // Calculate relative angle to the rotating orbit (rotated 360-degree space)
             const relativeAngle = (angleDeg - currentRotation + 360 + 60) % 360;
             const bestSlotIdx = Math.floor(relativeAngle / 120) % 3;
 
             if (idx === activeOrbitIndex) {
-                // Hits on active orbit always apply the math op
                 runOnJS(onHit)(bestSlotIdx);
                 checkedOrbits.value = [...checkedOrbits.value, idx];
             } else {
-                // Ghosting through other orbits - show warning but keep going
                 runOnJS(onWrongOrbit)();
                 checkedOrbits.value = [...checkedOrbits.value, idx];
             }
         }
       });
+
+      // Meteor Collision Check (Simple distance-based check)
+      if (onMeteorHit && !meteorHitDone.value) {
+        const meteorPosY = -150; 
+        const distToMeteor = Math.sqrt(tx * tx + (ty - meteorPosY) * (ty - meteorPosY));
+        
+        if (distToMeteor < 50) { 
+          meteorHitDone.value = true;
+          runOnJS(onMeteorHit)();
+        }
+      }
 
       lastDist.value = currentDist;
     }

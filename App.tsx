@@ -1,4 +1,3 @@
-console.log("DEBUG: App.tsx module loading...");
 import React, { useState, useCallback, useRef, memo } from 'react';
 import {
   StyleSheet,
@@ -53,10 +52,10 @@ const StarBackground = memo(() => {
 });
 
 export default function App() {
-  console.log("DEBUG: App component rendering...");
   const {
     heroPower,
     currentLevelIndex,
+    meteorCurrentHealth,
     highScore,
     currentScore,
     gamePhase,
@@ -71,6 +70,7 @@ export default function App() {
     setGamePhase,
     resetToMenu,
     skipOrbit,
+    damageMeteor,
     showTutorialWarning,
     setShowTutorialWarning
   } = useGameStore();
@@ -97,7 +97,7 @@ export default function App() {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => gamePhaseRef.current === 'ORBIT_PHASE' && !isShootingRef.current,
+      onStartShouldSetPanResponder: () => (gamePhaseRef.current === 'ORBIT_PHASE' || gamePhaseRef.current === 'METEOR_PHASE') && !isShootingRef.current,
       onPanResponderGrant: () => {
         setIsDragging(true);
       },
@@ -165,9 +165,18 @@ export default function App() {
   const onProjectileMiss = useCallback(() => {
     setActiveProjectile(false);
     setIsShooting(false);
-    skipOrbit();
+    if (gamePhaseRef.current === 'ORBIT_PHASE') {
+      skipOrbit();
+    }
     orbitStartTime.current = Date.now();
   }, [skipOrbit]);
+
+  const onMeteorHit = useCallback(() => {
+    setActiveProjectile(false);
+    setIsShooting(false);
+    damageMeteor(heroPower);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  }, [heroPower, damageMeteor]);
 
   const onMeteorCollision = () => {
     if (!currentLevelData) return;
@@ -264,7 +273,7 @@ export default function App() {
 
         {gamePhase === 'METEOR_PHASE' && (
           <Meteor
-            health={currentLevelData?.meteorHealth || 0}
+            health={meteorCurrentHealth}
             currentPower={heroPower}
             onCollision={onMeteorCollision}
           />
@@ -284,6 +293,7 @@ export default function App() {
             activeOrbitIndex={activeOrbitIndex}
             onHit={onProjectileHit}
             onMiss={onProjectileMiss}
+            onMeteorHit={onMeteorHit}
             onWrongOrbit={() => setShowTutorialWarning(true)}
             orbitStartTime={orbitStartTime.current}
           />
