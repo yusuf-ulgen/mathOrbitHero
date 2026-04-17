@@ -19,7 +19,7 @@
       "bundleIdentifier": "com.yusufulgen.mathorbithero"
     },
     "android": {
-      "package": "com.yusufulgen.mathorbithero",
+      "package": "com.yusufulgen.mathorbitalhero",
       "versionCode": 1,
       "backgroundColor": "#0c121e",
       "adaptiveIcon": {
@@ -27,11 +27,6 @@
         "backgroundColor": "#0c121e"
       }
     },
-    "web": {},
-    "extra": {
-      "eas": {
-        "projectId": "33be9cf1-ad5d-4d9a-a9ae-fcc3fc2b750c"
-      }
-    }
+    "web": {}
   }
 }
