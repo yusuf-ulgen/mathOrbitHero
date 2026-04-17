@@ -77,20 +77,39 @@ export const generateLevel = (levelId: number): LevelConfig => {
   
   for (let i = 0; i < orbitCount; i++) {
     orbits.push({
-      radius: 100 + (i * 55),
+      radius: Math.min(100 + (i * 35), 160),
       rotationSpeed: baseSpeed + (rng.nextInt(-1000, 1000)),
       slots: slotsData[i],
       initialRotation: rng.nextInt(0, 359),
     });
   }
 
+  // Calculate maximum achievable power for balance
+  let maxPossiblePower = 5;
+  slotsData.forEach(orbitSlots => {
+    let best = -999999;
+    orbitSlots.forEach(slot => {
+        let test = maxPossiblePower;
+        if (slot.op === '+') test += slot.value;
+        if (slot.op === '-') test -= slot.value;
+        if (slot.op === '*') test *= slot.value;
+        if (slot.op === '/') test = Math.floor(test / slot.value);
+        if (test > best) best = test;
+    });
+    maxPossiblePower = Math.max(0, best);
+  });
+
   // Meteor health calculation
   let meteorHealth = 0;
   if (isBoss) {
-    meteorHealth = Math.floor(levelId * 80 + rng.nextInt(50, 200));
+    // Requires a near perfect run (70% - 95% of max possible power)
+    meteorHealth = Math.floor(maxPossiblePower * (0.7 + rng.next() * 0.25));
   } else {
-    meteorHealth = 50 + (levelId * 30) + rng.nextInt(0, 50);
+    // Requires an okay run (40% - 75% of max possible power)
+    meteorHealth = Math.floor(maxPossiblePower * (0.4 + rng.next() * 0.35));
   }
+  
+  meteorHealth = Math.max(10, meteorHealth); // Ensure health is at least 10
 
   return {
     id: levelId,

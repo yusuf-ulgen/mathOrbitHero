@@ -18,7 +18,7 @@ import { TutorialAlert } from './src/components/TutorialAlert';
 import { useGameStore } from './src/store/useGameStore';
 import { COLORS } from './src/constants/theme';
 import * as Haptics from 'expo-haptics';
-import { Rocket, Trophy, Play, Infinity as InfinityIcon } from 'lucide-react-native';
+import { Rocket, Trophy, Play, Infinity as InfinityIcon, Home } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -81,6 +81,7 @@ export default function App() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [currentDrag, setCurrentDrag] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   const gamePhaseRef = useRef(gamePhase);
   const isShootingRef = useRef(isShooting);
@@ -93,11 +94,23 @@ export default function App() {
     isShootingRef.current = isShooting;
   }, [isShooting]);
 
+  React.useEffect(() => {
+    if (gamePhase === 'METEOR_PHASE') {
+      const timer = setTimeout(() => {
+        setShotVector({ x: 0, y: -1 }); // Straight up towards the meteor
+        setIsShooting(true);
+        setActiveProjectile(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }, 1000); // 1-second delay for cinematic effect
+      return () => clearTimeout(timer);
+    }
+  }, [gamePhase]);
+
   const orbitStartTime = useRef(Date.now());
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => (gamePhaseRef.current === 'ORBIT_PHASE' || gamePhaseRef.current === 'METEOR_PHASE') && !isShootingRef.current,
+      onStartShouldSetPanResponder: () => gamePhaseRef.current === 'ORBIT_PHASE' && !isShootingRef.current,
       onPanResponderGrant: () => {
         setIsDragging(true);
       },
@@ -234,16 +247,23 @@ export default function App() {
       {/* HUD */}
       <SafeAreaView style={styles.hud}>
         <View style={styles.hudRow}>
-          <View>
-            <Text style={styles.hudLabel}>{gameMode === 'LEVEL' ? 'BÖLÜM' : 'REKOR'}</Text>
-            <Text style={styles.hudValue}>{gameMode === 'LEVEL' ? currentLevelIndex : highScore}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => setShowExitModal(true)} style={{ marginRight: 15 }}>
+              <Home color={COLORS.primary} size={28} />
+            </TouchableOpacity>
+            <View>
+              <Text style={styles.hudLabel}>{gameMode === 'LEVEL' ? 'BÖLÜM' : 'REKOR'}</Text>
+              <Text style={styles.hudValue}>{gameMode === 'LEVEL' ? currentLevelIndex : highScore}</Text>
+            </View>
           </View>
 
           <View style={styles.centralHud}>
             <Text style={styles.hudLabel}>KALAN YÖRÜNGE</Text>
             <View style={styles.orbitalCounter}>
               <Text style={styles.orbitalValue}>
-                {currentLevelData ? Math.max(0, currentLevelData.orbits.length - activeOrbitIndex) : 0}
+                {gamePhase === 'METEOR_PHASE' || gamePhase === 'WIN' || gamePhase === 'GAME_OVER' 
+                  ? 0 
+                  : (currentLevelData ? Math.max(0, currentLevelData.orbits.length - activeOrbitIndex) : 0)}
               </Text>
               <Rocket size={16} color={COLORS.primary} style={{ marginLeft: 5 }} />
             </View>
@@ -319,13 +339,25 @@ export default function App() {
           <View style={styles.overlayBox}>
             <Trophy color={gamePhase === 'WIN' ? COLORS.success : COLORS.danger} size={64} />
             <Text style={styles.overlayTitle}>
-              {gamePhase === 'WIN' ? 'TEBRİKLER!' : 'OUN BİTTİ'}
+              {gamePhase === 'WIN' ? 'TEBRİKLER!' : 'OYUN BİTTİ'}
             </Text>
             <Text style={styles.overlaySub}>
               {gamePhase === 'WIN'
                 ? `Bölüm ${currentLevelIndex} tamamlandı!`
                 : `Göktaşı gücü (${currentLevelData?.meteorHealth}) senin gücünden (${heroPower}) fazlaydı.`}
             </Text>
+
+            {gamePhase === 'GAME_OVER' && (
+              <TouchableOpacity
+                style={[
+                  styles.overlayButton,
+                  { backgroundColor: COLORS.success, marginBottom: 15 }
+                ]}
+                onPress={() => startLevel()}
+              >
+                <Text style={styles.overlayButtonText}>TEKRAR OYNA</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[
@@ -338,6 +370,30 @@ export default function App() {
                 {gamePhase === 'WIN' ? 'SIRADAKİ BÖLÜM' : 'MENÜYE DÖN'}
               </Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Exit Modal */}
+      {showExitModal && (
+        <View style={styles.overlay}>
+          <View style={styles.overlayBox}>
+            <Text style={styles.overlayTitle}>MENÜYE DÖN?</Text>
+            <Text style={styles.overlaySub}>Emin misiniz? Mevcut ilerlemeniz kaybolacak.</Text>
+            <View style={{ flexDirection: 'row', gap: 15, width: '100%' }}>
+              <TouchableOpacity
+                style={[styles.overlayButton, { flex: 1, backgroundColor: COLORS.orbit }]}
+                onPress={() => setShowExitModal(false)}
+              >
+                <Text style={styles.overlayButtonText}>İPTAL</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.overlayButton, { flex: 1, backgroundColor: COLORS.danger }]}
+                onPress={() => { setShowExitModal(false); resetToMenu(); }}
+              >
+                <Text style={styles.overlayButtonText}>EVET</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       )}

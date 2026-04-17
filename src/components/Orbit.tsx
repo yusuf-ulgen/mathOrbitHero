@@ -1,5 +1,6 @@
 import React, { useEffect, memo } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -20,6 +21,8 @@ interface OrbitProps {
 
 export const Orbit: React.FC<OrbitProps> = memo(({ radius, rotationSpeed, slots, isActive, initialRotation }) => {
   const rotation = useSharedValue(initialRotation);
+  const circumference = 2 * Math.PI * radius;
+  const strokeDash = circumference / 3;
 
   useEffect(() => {
     rotation.value = initialRotation;
@@ -37,19 +40,29 @@ export const Orbit: React.FC<OrbitProps> = memo(({ radius, rotationSpeed, slots,
 
   return (
     <View style={[styles.container, { width: radius * 2, height: radius * 2 }]}>
-      <View style={[
-        styles.ring, 
-        { 
-          width: radius * 2, 
-          height: radius * 2, 
-          borderRadius: radius,
-          borderColor: isActive ? COLORS.primary : COLORS.orbit,
-          borderWidth: isActive ? 2 : 1,
-          opacity: isActive ? 1 : 0.5,
-        }
-      ]} />
-      
       <Animated.View style={[styles.content, animatedStyle]}>
+        <Svg width={radius * 2} height={radius * 2} style={{ position: 'absolute' }}>
+          {slots.map((slot, i) => {
+            const isNegative = slot.op === '-' || slot.op === '/';
+            const color = isNegative ? COLORS.danger : COLORS.success;
+            return (
+              <Circle
+                key={`arc-${i}`}
+                cx={radius}
+                cy={radius}
+                r={radius - 3} // Adjusting for stroke width
+                stroke={color}
+                strokeWidth={6}
+                strokeDasharray={`${strokeDash} ${circumference}`}
+                fill="transparent"
+                rotation={(i * 120) - 150} // Offsets exact 120 degree chunks properly
+                origin={`${radius}, ${radius}`}
+                opacity={isActive ? 0.8 : 0.3}
+              />
+            );
+          })}
+        </Svg>
+
         {slots.map((slot, i) => {
           const angle = i * 120; // 3 segments
           const isNegative = slot.op === '-' || slot.op === '/';
@@ -60,11 +73,6 @@ export const Orbit: React.FC<OrbitProps> = memo(({ radius, rotationSpeed, slots,
               styles.segment, 
               { transform: [{ rotate: `${angle}deg` }] }
             ]}>
-              <View style={[
-                  styles.segmentArc, 
-                  { borderColor: color, opacity: isActive ? 0.8 : 0.3 }
-              ]} />
-              
               <View style={[
                 styles.item,
                 { transform: [{ translateY: -radius }] }
@@ -95,10 +103,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  ring: {
-    borderWidth: 1,
-    position: 'absolute',
-  },
   content: {
     width: '100%',
     height: '100%',
@@ -111,17 +115,6 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  segmentArc: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    borderRadius: 1000,
-    borderWidth: 6,
-    borderTopColor: 'transparent',
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    transform: [{ rotate: '180deg' }], 
   },
   item: {
     position: 'absolute',

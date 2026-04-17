@@ -44,9 +44,9 @@ export const Projectile: React.FC<ProjectileProps> = memo(({
   const meteorHitDone = useSharedValue(false);
 
   useEffect(() => {
-    // Projectile travels for 1.5 seconds at fixed speed
+    // Projectile travels for 0.5 seconds for much faster hit (eliminates 'deviation' input lag)
     progress.value = withTiming(1, { 
-        duration: 1500, 
+        duration: 500, 
         easing: Easing.linear 
     }, (finished) => {
       if (finished) {
@@ -66,15 +66,14 @@ export const Projectile: React.FC<ProjectileProps> = memo(({
 
       const currentDist = Math.sqrt(tx * tx + ty * ty);
 
-      // Check off-screen
-      if (Math.abs(tx) > width / 2 || Math.abs(ty) > height / 2) {
+      // Check off-screen (Use large bounds so it never cuts off large orbits)
+      if (Math.abs(tx) > width || Math.abs(ty) > height) {
           return;
       }
 
-      // Collision Detection
-      allOrbits.forEach((orbit, idx) => {
-        if (checkedOrbits.value.includes(idx)) return;
-
+      // Collision Detection (Only check the active orbit)
+      const orbit = allOrbits[activeOrbitIndex];
+      if (orbit && !checkedOrbits.value.includes(activeOrbitIndex)) {
         // Crossing check: check if the radius is between last and current distance
         const crossed = (lastDist.value <= orbit.radius && currentDist >= orbit.radius) || 
                         (lastDist.value >= orbit.radius && currentDist <= orbit.radius);
@@ -91,15 +90,10 @@ export const Projectile: React.FC<ProjectileProps> = memo(({
             const relativeAngle = (angleDeg - currentRotation + 360 + 60) % 360;
             const bestSlotIdx = Math.floor(relativeAngle / 120) % 3;
 
-            if (idx === activeOrbitIndex) {
-                runOnJS(onHit)(bestSlotIdx);
-                checkedOrbits.value = [...checkedOrbits.value, idx];
-            } else {
-                runOnJS(onWrongOrbit)();
-                checkedOrbits.value = [...checkedOrbits.value, idx];
-            }
+            runOnJS(onHit)(bestSlotIdx);
+            checkedOrbits.value = [...checkedOrbits.value, activeOrbitIndex];
         }
-      });
+      }
 
       // Meteor Collision Check (Simple distance-based check)
       if (onMeteorHit && !meteorHitDone.value) {
