@@ -8,8 +8,16 @@ import {
   Text,
   SafeAreaView,
   PanResponder,
-  Animated as ReactNativeAnimated
+  Animated as ReactNativeAnimated,
+  BackHandler,
+  Alert
 } from 'react-native';
+import Animated, { 
+  useSharedValue, 
+  withTiming, 
+  Easing, 
+  runOnJS 
+} from 'react-native-reanimated';
 import { Hero } from './src/components/Hero';
 import { Orbit } from './src/components/Orbit';
 import { Meteor } from './src/components/Meteor';
@@ -75,36 +83,67 @@ export default function App() {
     setShowTutorialWarning
   } = useGameStore();
 
-  const [isShooting, setIsShooting] = useState(false);
-  const [shotVector, setShotVector] = useState({ x: 0, y: 0 });
   const [activeProjectile, setActiveProjectile] = useState(false);
+  const [shotVector, setShotVector] = useState({ x: 0, y: -1 });
+  const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [currentDrag, setCurrentDrag] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
 
   const gamePhaseRef = useRef(gamePhase);
-  const isShootingRef = useRef(isShooting);
+  const isShootingRef = useRef(activeProjectile);
 
   React.useEffect(() => {
     gamePhaseRef.current = gamePhase;
   }, [gamePhase]);
 
   React.useEffect(() => {
-    isShootingRef.current = isShooting;
-  }, [isShooting]);
+    isShootingRef.current = activeProjectile;
+  }, [activeProjectile]);
 
   React.useEffect(() => {
     if (gamePhase === 'METEOR_PHASE') {
       const timer = setTimeout(() => {
-        setShotVector({ x: 0, y: -1 }); // Straight up towards the meteor
-        setIsShooting(true);
+        // Double check phase hasn't changed during timeout
+        if (gamePhaseRef.current !== 'METEOR_PHASE') return;
+
+        setShotVector({ x: 0, y: -1 });
         setActiveProjectile(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       }, 1000); // 1-second delay for cinematic effect
+
       return () => clearTimeout(timer);
     }
   }, [gamePhase]);
+
+  // Back Handler logic
+  React.useEffect(() => {
+    const backAction = () => {
+      if (gamePhase === 'MENU') {
+        // On menu, standard behavior (exit)
+        return false;
+      }
+      
+      if (gamePhase === 'ORBIT_PHASE' || gamePhase === 'METEOR_PHASE') {
+        setShowExitModal(true);
+        return true;
+      }
+
+      if (gamePhase === 'WIN' || gamePhase === 'GAME_OVER') {
+        resetToMenu();
+        return true;
+      }
+
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, [gamePhase, resetToMenu]);
 
   const orbitStartTime = useRef(Date.now());
 
@@ -133,7 +172,6 @@ export default function App() {
           const ny = -dy / distance;
 
           setShotVector({ x: nx, y: ny });
-          setIsShooting(true);
           setActiveProjectile(true);
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
@@ -148,16 +186,15 @@ export default function App() {
   };
 
   const fireShot = () => {
-    if (gamePhase !== 'ORBIT_PHASE' || isShooting) return;
+    if (gamePhase !== 'ORBIT_PHASE' || activeProjectile) return;
 
-    setIsShooting(true);
+    setShotVector({ x: 0, y: -1 });
     setActiveProjectile(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
   const onProjectileHit = useCallback((bestSlotIdx: number) => {
     setActiveProjectile(false);
-    setIsShooting(false);
 
     if (!currentLevelData) return;
 
@@ -177,7 +214,6 @@ export default function App() {
 
   const onProjectileMiss = useCallback(() => {
     setActiveProjectile(false);
-    setIsShooting(false);
     if (gamePhaseRef.current === 'ORBIT_PHASE') {
       skipOrbit();
     }
@@ -186,7 +222,6 @@ export default function App() {
 
   const onMeteorHit = useCallback(() => {
     setActiveProjectile(false);
-    setIsShooting(false);
     damageMeteor(heroPower);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
   }, [heroPower, damageMeteor]);
@@ -247,9 +282,10 @@ export default function App() {
       {/* HUD */}
       <SafeAreaView style={styles.hud}>
         <View style={styles.hudRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => setShowExitModal(true)} style={{ marginRight: 15 }}>
-              <Home color={COLORS.primary} size={28} />
+          {/* Left Section: Home & Level */}
+          <View style={styles.hudSectionLeft}>
+            <TouchableOpacity onPress={() => setShowExitModal(true)} style={styles.homeButton}>
+              <Home color={COLORS.primary} size={24} />
             </TouchableOpacity>
             <View>
               <Text style={styles.hudLabel}>{gameMode === 'LEVEL' ? 'BÖLÜM' : 'REKOR'}</Text>
@@ -257,7 +293,8 @@ export default function App() {
             </View>
           </View>
 
-          <View style={styles.centralHud}>
+          {/* Center Section: Orbital Counter */}
+          <View style={styles.hudSectionCenter}>
             <Text style={styles.hudLabel}>KALAN YÖRÜNGE</Text>
             <View style={styles.orbitalCounter}>
               <Text style={styles.orbitalValue}>
@@ -269,7 +306,8 @@ export default function App() {
             </View>
           </View>
 
-          <View style={{ alignItems: 'flex-end', flex: 1 }}>
+          {/* Right Section: Hero Power */}
+          <View style={styles.hudSectionRight}>
             <Text style={styles.hudLabel}>GÜÇ PUANI</Text>
             <Text style={[styles.hudValue, { color: COLORS.primary }]}>{heroPower}</Text>
           </View>
@@ -301,7 +339,7 @@ export default function App() {
 
         <Hero
           value={heroPower}
-          isShooting={isShooting}
+          isShooting={activeProjectile}
           dragVector={isDragging ? currentDrag : null}
         />
 
@@ -313,7 +351,7 @@ export default function App() {
             activeOrbitIndex={activeOrbitIndex}
             onHit={onProjectileHit}
             onMiss={onProjectileMiss}
-            onMeteorHit={onMeteorHit}
+            onMeteorHit={gamePhase === 'METEOR_PHASE' ? onMeteorHit : undefined}
             onWrongOrbit={() => setShowTutorialWarning(true)}
             orbitStartTime={orbitStartTime.current}
           />
@@ -321,7 +359,7 @@ export default function App() {
       </View>
 
       {/* Input Overlay - Ensures touches are captured from anywhere */}
-      {gamePhase === 'ORBIT_PHASE' && !isShooting && (
+      {gamePhase === 'ORBIT_PHASE' && !activeProjectile && (
         <View
           {...panResponder.panHandlers}
           style={StyleSheet.absoluteFill}
@@ -475,10 +513,26 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '900',
   },
-  centralHud: {
+  hudSectionLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  hudSectionCenter: {
+    flex: 1.2, // Give slightly more space to long "KALAN YÖRÜNGE" text
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  hudSectionRight: {
     flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  homeButton: {
+    marginRight: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 8,
+    borderRadius: 12,
   },
   orbitalCounter: {
     flexDirection: 'row',

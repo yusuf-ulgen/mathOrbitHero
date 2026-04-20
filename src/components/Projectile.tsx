@@ -44,10 +44,10 @@ export const Projectile: React.FC<ProjectileProps> = memo(({
   const meteorHitDone = useSharedValue(false);
 
   useEffect(() => {
-    // Projectile travels for 0.5 seconds for much faster hit (eliminates 'deviation' input lag)
+    // Increased duration for smoother visual and more reliable collision detection
     progress.value = withTiming(1, { 
-        duration: 500, 
-        easing: Easing.linear 
+        duration: 1000, 
+        easing: Easing.out(Easing.quad) 
     }, (finished) => {
       if (finished) {
         runOnJS(onMiss)();
@@ -58,9 +58,9 @@ export const Projectile: React.FC<ProjectileProps> = memo(({
   useAnimatedReaction(
     () => progress.value,
     (p) => {
-      // Speed multiplier - 800 units over 1.5s
-      const tx = initialVelocity.x * p * 800;
-      const ty = initialVelocity.y * p * 800;
+      // Increased range to 1200 to cover all screen sizes and large orbits
+      const tx = initialVelocity.x * p * 1200;
+      const ty = initialVelocity.y * p * 1200;
       posX.value = tx;
       posY.value = ty;
 

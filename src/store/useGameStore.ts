@@ -115,6 +115,10 @@ export const useGameStore = create<GameState>()(
 
       completeLevel: (success) => {
         const state = get();
+        
+        // Prevent multiple completions for the same level (idempotency)
+        if (state.gamePhase === 'WIN' || state.gamePhase === 'GAME_OVER') return;
+
         if (!success) {
           set({ gamePhase: 'GAME_OVER' });
           return;
@@ -165,6 +169,7 @@ export const useGameStore = create<GameState>()(
         const newHealth = Math.max(0, state.meteorCurrentHealth - amount);
         set({ meteorCurrentHealth: newHealth });
 
+        // If meteor health is 0, player wins immediately
         if (newHealth <= 0) {
           get().completeLevel(true);
         }

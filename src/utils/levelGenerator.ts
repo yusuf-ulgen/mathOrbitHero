@@ -77,7 +77,7 @@ export const generateLevel = (levelId: number): LevelConfig => {
   
   for (let i = 0; i < orbitCount; i++) {
     orbits.push({
-      radius: Math.min(100 + (i * 35), 160),
+      radius: Math.min(100 + (i * 40), 220),
       rotationSpeed: baseSpeed + (rng.nextInt(-1000, 1000)),
       slots: slotsData[i],
       initialRotation: rng.nextInt(0, 359),
