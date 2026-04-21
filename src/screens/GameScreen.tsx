@@ -31,8 +31,11 @@ export const GameScreen = ({ route, navigation }: any) => {
     gamePhase,
     levelsSinceLastDrop, 
     incrementPityTimer, 
-    resetPityTimer
+    resetPityTimer,
+    resetHeroPower
   } = useGameStore();
+
+  const [levelStartTime, setLevelStartTime] = useState<number>(Date.now());
 
   const [timeLeft, setTimeLeft] = useState(30); // Default time limit
   const [activeOrbitIndex, setActiveOrbitIndex] = useState(0);
@@ -56,6 +59,13 @@ export const GameScreen = ({ route, navigation }: any) => {
       });
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const now = Date.now();
+    setLevelStartTime(now);
+    resetHeroPower();
+    setGamePhase('ORBIT_PHASE');
   }, []);
 
   const handleGameOver = (success: boolean) => {
@@ -97,13 +107,14 @@ export const GameScreen = ({ route, navigation }: any) => {
     if (!activeOrbit) return;
 
     const rotationPerMs = 360 / activeOrbit.rotationSpeed;
-    const elapsed = (Date.now() + activeOrbit.initialRotation * (activeOrbit.rotationSpeed / 360)) % activeOrbit.rotationSpeed;
+    const elapsed = (Date.now() - levelStartTime + activeOrbit.initialRotation * (activeOrbit.rotationSpeed / 360)) % activeOrbit.rotationSpeed;
     const currentRotation = (elapsed * rotationPerMs) % 360;
     
     let shotAngle = (angle * 180 / Math.PI + 90) % 360;
     if (shotAngle < 0) shotAngle += 360;
 
-    const slotAngle = (shotAngle - currentRotation + 360) % 360;
+    // +60 degrees offset added to center the hit logic with visual slots
+    const slotAngle = (shotAngle - currentRotation + 360 + 60) % 360;
     const hitIndex = Math.floor(slotAngle / 120) % 3;
     
     const slot = activeOrbit.slots[hitIndex];
@@ -232,25 +243,29 @@ export const GameScreen = ({ route, navigation }: any) => {
                     </View>
                  )}
 
-                 <View style={styles.modalButtons}>
-                    <TouchableOpacity style={styles.modalButton} onPress={() => navigation.goBack()}>
-                       <Text style={styles.buttonText}>MENU</Text>
-                    </TouchableOpacity>
+                  <View style={styles.modalButtons}>
                     {gamePhase === 'WIN' ? (
                        <TouchableOpacity 
                          style={[styles.modalButton, { backgroundColor: COLORS.primary }]}
                          onPress={() => navigation.replace('Game', { level: level + 1 })}
                         >
-                          <Text style={[styles.buttonText, { color: '#000' }]}>NEXT</Text>
+                          <Text style={[styles.buttonText, { color: '#000' }]}>SIRADAKİ BÖLÜM</Text>
                        </TouchableOpacity>
                     ) : (
                        <TouchableOpacity 
                          style={[styles.modalButton, { backgroundColor: COLORS.danger }]}
                          onPress={() => navigation.replace('Game', { level })}
                         >
-                          <Text style={styles.buttonText}>RETRY</Text>
+                          <Text style={styles.buttonText}>TEKRAR DENE</Text>
                        </TouchableOpacity>
                     )}
+                    
+                    <TouchableOpacity 
+                      style={[styles.modalButton, { backgroundColor: 'rgba(255,255,255,0.1)', marginTop: 10 }]} 
+                      onPress={() => navigation.goBack()}
+                    >
+                       <Text style={styles.buttonText}>ANA MENÜ</Text>
+                    </TouchableOpacity>
                  </View>
               </View>
            </View>
@@ -362,16 +377,15 @@ const styles = StyleSheet.create({
      marginVertical: 10,
   },
   modalButtons: {
-     flexDirection: 'row',
+     flexDirection: 'column',
      marginTop: 20,
-     gap: 15,
+     width: '100%',
   },
   modalButton: {
-     flex: 1,
-     paddingVertical: 12,
+     width: '100%',
+     paddingVertical: 15,
      borderRadius: 12,
      alignItems: 'center',
-     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   buttonText: {
      color: '#fff',

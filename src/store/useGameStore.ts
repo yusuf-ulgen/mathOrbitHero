@@ -39,6 +39,7 @@ interface GameState {
   upgradeSkill: (skillId: string) => void;
   incrementPityTimer: () => void;
   resetPityTimer: () => void;
+  resetHeroPower: () => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -186,6 +187,8 @@ export const useGameStore = create<GameState>()(
       incrementPityTimer: () => set((state) => ({ levelsSinceLastDrop: state.levelsSinceLastDrop + 1 })),
 
       resetPityTimer: () => set({ levelsSinceLastDrop: 0 }),
+
+      resetHeroPower: () => set({ heroPower: 5 }),
     }),
     {
       name: 'math-orbit-hero-storage',
