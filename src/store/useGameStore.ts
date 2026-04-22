@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LevelConfig, generateLevel, generateInfinityLevel, MathOp } from '../utils/levelGenerator';
+import { LevelConfig, generateLevel, MathOp } from '../utils/levelGenerator';
 
 interface GameState {
   // Stats
@@ -12,9 +12,10 @@ interface GameState {
   currentScore: number;
 
   // Game Logic
-  gameMode: 'LEVEL' | 'INFINITY' | null;
+  gameMode: 'LEVEL' | null;
   gamePhase: 'MENU' | 'ORBIT_PHASE' | 'METEOR_PHASE' | 'GAME_OVER' | 'WIN';
   activeOrbitIndex: number;
+  currentLevelData: LevelConfig | null;
   meteorCurrentHealth: number;
   showTutorialWarning: boolean;
 
@@ -24,7 +25,7 @@ interface GameState {
   levelsSinceLastDrop: number;
 
   // Actions
-  setGameMode: (mode: 'LEVEL' | 'INFINITY') => void;
+  setGameMode: (mode: 'LEVEL') => void;
   startLevel: (level?: number) => void;
   applyMathOp: (op: MathOp, value: number) => void;
   updateHeroPower: (opStr: string) => void;
@@ -63,13 +64,8 @@ export const useGameStore = create<GameState>()(
       setGameMode: (mode) => set({ gameMode: mode, currentScore: 0 }),
 
       startLevel: (level) => {
-        const mode = get().gameMode;
         const currentLvl = get().currentLevelIndex;
-        const score = get().currentScore;
-
-        const data = mode === 'INFINITY'
-          ? generateInfinityLevel(score)
-          : generateLevel(level || currentLvl);
+        const data = generateLevel(level || currentLvl);
 
         set({
           currentLevelData: data,
@@ -127,21 +123,11 @@ export const useGameStore = create<GameState>()(
 
         const bonusGold = 10 + (state.currentLevelIndex * 5);
 
-        if (state.gameMode === 'LEVEL') {
-          set({
-            gamePhase: 'WIN',
-            currentLevelIndex: state.currentLevelIndex + 1,
-            gold: state.gold + bonusGold
-          });
-        } else {
-          const newScore = state.currentScore + 1;
-          set({
-            gamePhase: 'WIN',
-            currentScore: newScore,
-            highScore: Math.max(state.highScore, newScore),
-            gold: state.gold + bonusGold
-          });
-        }
+        set({
+          gamePhase: 'WIN',
+          currentLevelIndex: state.currentLevelIndex + 1,
+          gold: state.gold + bonusGold
+        });
       },
 
       setGamePhase: (phase) => set({ gamePhase: phase }),

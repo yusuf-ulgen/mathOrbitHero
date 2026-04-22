@@ -26,7 +26,7 @@ import { TutorialAlert } from './src/components/TutorialAlert';
 import { useGameStore } from './src/store/useGameStore';
 import { COLORS } from './src/constants/theme';
 import * as Haptics from 'expo-haptics';
-import { Rocket, Trophy, Play, Infinity as InfinityIcon, Home } from 'lucide-react-native';
+import { Rocket, Trophy, Play, Home } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -179,8 +179,9 @@ export default function App() {
     })
   ).current;
 
-  const handleModeSelect = (mode: 'LEVEL' | 'INFINITY') => {
+  const handleModeSelect = (mode: 'LEVEL') => {
     setGameMode(mode);
+    orbitStartTime.current = Date.now();
     startLevel();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
   };
@@ -250,18 +251,7 @@ export default function App() {
             onPress={() => handleModeSelect('LEVEL')}
           >
             <Play color="#fff" size={24} />
-            <Text style={styles.menuButtonText}>BÖLÜM MODU ({currentLevelIndex})</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.menuButton, { borderColor: COLORS.secondary }]}
-            onPress={() => handleModeSelect('INFINITY')}
-          >
-            <InfinityIcon color="#fff" size={24} />
-            <View style={{ marginLeft: 15 }}>
-              <Text style={styles.menuButtonText}>SONSUZ MOD</Text>
-              {highScore > 0 && <Text style={styles.highScoreLabel}>REKOR: {highScore}</Text>}
-            </View>
+            <Text style={styles.menuButtonText}>OYUNA BAŞLA (Bölüm {currentLevelIndex})</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -288,8 +278,8 @@ export default function App() {
               <Home color={COLORS.primary} size={24} />
             </TouchableOpacity>
             <View>
-              <Text style={styles.hudLabel}>{gameMode === 'LEVEL' ? 'BÖLÜM' : 'REKOR'}</Text>
-              <Text style={styles.hudValue}>{gameMode === 'LEVEL' ? currentLevelIndex : highScore}</Text>
+              <Text style={styles.hudLabel}>BÖLÜM</Text>
+              <Text style={styles.hudValue}>{currentLevelIndex}</Text>
             </View>
           </View>
 
@@ -391,7 +381,10 @@ export default function App() {
                   styles.overlayButton,
                   { backgroundColor: COLORS.success, marginBottom: 15 }
                 ]}
-                onPress={() => startLevel()}
+                onPress={() => {
+                  orbitStartTime.current = Date.now();
+                  startLevel();
+                }}
               >
                 <Text style={styles.overlayButtonText}>TEKRAR OYNA</Text>
               </TouchableOpacity>
@@ -402,7 +395,10 @@ export default function App() {
                 styles.overlayButton,
                 { backgroundColor: gamePhase === 'WIN' ? COLORS.success : COLORS.danger }
               ]}
-              onPress={() => gamePhase === 'WIN' ? startLevel() : resetToMenu()}
+              onPress={() => {
+                orbitStartTime.current = Date.now();
+                gamePhase === 'WIN' ? startLevel() : resetToMenu();
+              }}
             >
               <Text style={styles.overlayButtonText}>
                 {gamePhase === 'WIN' ? 'SIRADAKİ BÖLÜM' : 'MENÜYE DÖN'}

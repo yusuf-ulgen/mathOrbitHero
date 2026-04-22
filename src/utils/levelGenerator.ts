@@ -120,6 +120,4 @@ export const generateLevel = (levelId: number): LevelConfig => {
   };
 };
 
-export const generateInfinityLevel = (round: number): LevelConfig => {
-  return generateLevel(round + 15); // Start harder in infinity
-};
+
