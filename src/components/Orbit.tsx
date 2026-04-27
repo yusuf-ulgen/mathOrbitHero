@@ -6,7 +6,8 @@ import Animated, {
   useAnimatedStyle, 
   withRepeat, 
   withTiming, 
-  Easing 
+  Easing,
+  cancelAnimation
 } from 'react-native-reanimated';
 import { COLORS } from '../constants/theme';
 import { MathSlot } from '../utils/levelGenerator';
@@ -17,21 +18,37 @@ interface OrbitProps {
   slots: MathSlot[];
   isActive: boolean;
   initialRotation: number;
+  isPaused: boolean;
 }
 
-export const Orbit: React.FC<OrbitProps> = memo(({ radius, rotationSpeed, slots, isActive, initialRotation }) => {
+export const Orbit: React.FC<OrbitProps> = memo(({ 
+  radius, 
+  rotationSpeed, 
+  slots, 
+  isActive, 
+  initialRotation,
+  isPaused
+}) => {
   const rotation = useSharedValue(initialRotation);
   const circumference = 2 * Math.PI * radius;
   const strokeDash = circumference / 3;
 
   useEffect(() => {
-    rotation.value = initialRotation;
-    rotation.value = withRepeat(
-      withTiming(initialRotation + 360, { duration: rotationSpeed, easing: Easing.linear }),
-      -1,
-      false
-    );
-  }, [rotationSpeed, initialRotation]);
+    if (isPaused) {
+      cancelAnimation(rotation);
+    } else {
+      // Start or Resume animation
+      // We animate from current value to current value + 360 to ensure a full loop
+      rotation.value = withRepeat(
+        withTiming(rotation.value + 360, { 
+          duration: rotationSpeed, 
+          easing: Easing.linear 
+        }),
+        -1,
+        false
+      );
+    }
+  }, [isPaused, rotationSpeed]); // Only re-run when pause state or speed changes
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],

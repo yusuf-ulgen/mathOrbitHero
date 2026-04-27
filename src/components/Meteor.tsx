@@ -1,57 +1,88 @@
-import React, { memo, useEffect } from 'react';
+import React, { memo, useEffect, useRef } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withRepeat,
+  withSequence,
   Easing,
-  runOnJS
 } from 'react-native-reanimated';
 import { COLORS } from '../constants/theme';
 import { Shell } from 'lucide-react-native';
 
 interface MeteorProps {
   health: number;
-  currentPower: number;
-  onCollision: () => void;
+  maxHealth: number;
+  onArrived: () => void;
 }
 
-export const Meteor: React.FC<MeteorProps> = memo(({ health, currentPower, onCollision }) => {
-  const translateY = useSharedValue(-400);
+export const Meteor: React.FC<MeteorProps> = memo(({ health, maxHealth, onArrived }) => {
+  const translateY = useSharedValue(-300);
+  const scale = useSharedValue(0.5);
+  const pulse = useSharedValue(1);
+  const arrivedCalled = useRef(false);
 
   useEffect(() => {
-    translateY.value = withTiming(0, { 
-      duration: 4000, 
-      easing: Easing.linear 
-    }, (finished) => {
-      if (finished) {
-        runOnJS(onCollision)();
-      }
+    // Meteor comes from the top of the screen and stops at a position
+    scale.value = withTiming(1, { duration: 1500, easing: Easing.out(Easing.quad) });
+    translateY.value = withTiming(0, {
+      duration: 1500,
+      easing: Easing.out(Easing.back(1.2))
     });
+
+    // Call onArrived after animation completes (match duration)
+    const timer = setTimeout(() => {
+      if (!arrivedCalled.current) {
+        arrivedCalled.current = true;
+        onArrived();
+      }
+    }, 1600); // slightly longer than animation duration
+
+    // Pulse effect
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1.08, { duration: 800, easing: Easing.inOut(Easing.quad) }),
+        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.quad) }),
+      ),
+      -1,
+      false
+    );
+
+    return () => clearTimeout(timer);
   }, []);
 
+
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value * pulse.value }
+    ],
   }));
 
-  const canBeDestroyed = currentPower >= health;
+  const healthPercent = maxHealth > 0 ? health / maxHealth : 0;
 
   return (
     <Animated.View style={[styles.container, animatedStyle]}>
+      <View style={styles.glow} />
       <View style={styles.meteorBody}>
-        <Shell 
-          size={80} 
-          color={canBeDestroyed ? COLORS.warning : COLORS.danger} 
+        <Shell
+          size={90}
+          color={COLORS.danger}
         />
-        <View style={[
-          styles.healthTag, 
-          { backgroundColor: canBeDestroyed ? 'rgba(0,128,0,0.8)' : 'rgba(0,0,0,0.8)' }
-        ]}>
+        {/* Health bar */}
+        <View style={styles.healthBarBg}>
+          <View style={[styles.healthBarFill, {
+            width: `${healthPercent * 100}%`,
+            backgroundColor: healthPercent > 0.5 ? COLORS.danger : healthPercent > 0.25 ? COLORS.warning : '#ff0000',
+          }]} />
+        </View>
+        {/* Health number */}
+        <View style={styles.healthTag}>
           <Text style={styles.healthText}>{health}</Text>
         </View>
-        
-        {/* Fire trail effect */}
-        <View style={styles.trail} />
+        {/* Internal fire core */}
+        <View style={styles.fireCore} />
       </View>
     </Animated.View>
   );
@@ -59,42 +90,57 @@ export const Meteor: React.FC<MeteorProps> = memo(({ health, currentPower, onCol
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 200,
+  },
+  glow: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: COLORS.danger,
+    opacity: 0.15,
   },
   meteorBody: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: {
-    textShadowColor: COLORS.danger,
-    textShadowRadius: 20,
+  healthBarBg: {
+    width: 100,
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 4,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  healthBarFill: {
+    height: '100%',
+    borderRadius: 4,
   },
   healthTag: {
     position: 'absolute',
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 4,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: '#fff',
-    top: -20,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    top: -25,
+    minWidth: 50,
+    alignItems: 'center',
   },
   healthText: {
     color: '#fff',
     fontWeight: '900',
-    fontSize: 22,
+    fontSize: 20,
   },
-  trail: {
+  fireCore: {
     position: 'absolute',
-    width: 40,
-    height: 100,
-    backgroundColor: COLORS.danger,
-    opacity: 0.3,
-    bottom: 40,
-    zIndex: -1,
-    borderRadius: 20,
-  },
+    width: 25,
+    height: 25,
+    borderRadius: 13,
+    backgroundColor: COLORS.warning,
+    opacity: 0.4,
+  }
 });

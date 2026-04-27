@@ -1,15 +1,16 @@
 import React, { memo, useEffect } from 'react';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
   runOnJS,
   useAnimatedReaction,
   Easing
 } from 'react-native-reanimated';
 import { StyleSheet, Dimensions } from 'react-native';
-import { COLORS } from '../constants/theme';
 import { OrbitData } from '../utils/levelGenerator';
+
+const PROJECTILE_COLOR = '#00f7ff';
 
 const { width, height } = Dimensions.get('window');
 
@@ -25,29 +26,28 @@ interface ProjectileProps {
   orbitStartTime: number;
 }
 
-export const Projectile: React.FC<ProjectileProps> = memo(({ 
-    initialVelocity, 
-    activeOrbitIndex,
-    allOrbits,
-    onHit, 
-    onMiss,
-    onWrongOrbit,
-    onMeteorHit,
-    orbitStartTime
+export const Projectile: React.FC<ProjectileProps> = memo(({
+  initialVelocity,
+  activeOrbitIndex,
+  allOrbits,
+  onHit,
+  onMiss,
+  onWrongOrbit,
+  onMeteorHit,
+  orbitStartTime
 }) => {
   const posX = useSharedValue(0);
   const posY = useSharedValue(0);
   const progress = useSharedValue(0);
   const lastDist = useSharedValue(0);
-  
+
   const checkedOrbits = useSharedValue<number[]>([]);
   const meteorHitDone = useSharedValue(false);
 
   useEffect(() => {
-    // Increased duration for smoother visual and more reliable collision detection
-    progress.value = withTiming(1, { 
-        duration: 1000, 
-        easing: Easing.out(Easing.quad) 
+    progress.value = withTiming(1, {
+      duration: 1000,
+      easing: Easing.out(Easing.quad)
     }, (finished) => {
       if (finished) {
         runOnJS(onMiss)();
@@ -58,7 +58,6 @@ export const Projectile: React.FC<ProjectileProps> = memo(({
   useAnimatedReaction(
     () => progress.value,
     (p) => {
-      // Increased range to 1200 to cover all screen sizes and large orbits
       const tx = initialVelocity.x * p * 1200;
       const ty = initialVelocity.y * p * 1200;
       posX.value = tx;
@@ -66,41 +65,39 @@ export const Projectile: React.FC<ProjectileProps> = memo(({
 
       const currentDist = Math.sqrt(tx * tx + ty * ty);
 
-      // Check off-screen (Use large bounds so it never cuts off large orbits)
       if (Math.abs(tx) > width || Math.abs(ty) > height) {
-          return;
+        return;
       }
 
       // Collision Detection (Only check the active orbit)
       const orbit = allOrbits[activeOrbitIndex];
       if (orbit && !checkedOrbits.value.includes(activeOrbitIndex)) {
-        // Crossing check: check if the radius is between last and current distance
-        const crossed = (lastDist.value <= orbit.radius && currentDist >= orbit.radius) || 
-                        (lastDist.value >= orbit.radius && currentDist <= orbit.radius);
+        const crossed = (lastDist.value <= orbit.radius && currentDist >= orbit.radius) ||
+          (lastDist.value >= orbit.radius && currentDist <= orbit.radius);
 
         if (crossed) {
-            const angleRad = Math.atan2(tx, -ty);
-            let angleDeg = (angleRad * 180 / Math.PI);
-            if (angleDeg < 0) angleDeg += 360;
+          const angleRad = Math.atan2(tx, -ty);
+          let angleDeg = (angleRad * 180 / Math.PI);
+          if (angleDeg < 0) angleDeg += 360;
 
-            const now = new Date().getTime();
-            const elapsed = now - orbitStartTime;
-            const currentRotation = (orbit.initialRotation + (elapsed / orbit.rotationSpeed * 360)) % 360;
+          const now = new Date().getTime();
+          const elapsed = now - orbitStartTime;
+          const currentRotation = (orbit.initialRotation + (elapsed / orbit.rotationSpeed * 360)) % 360;
 
-            const relativeAngle = (angleDeg - currentRotation + 360 + 60) % 360;
-            const bestSlotIdx = Math.floor(relativeAngle / 120) % 3;
+          const relativeAngle = (angleDeg - currentRotation + 360 + 60) % 360;
+          const bestSlotIdx = Math.floor(relativeAngle / 120) % 3;
 
-            runOnJS(onHit)(bestSlotIdx);
-            checkedOrbits.value = [...checkedOrbits.value, activeOrbitIndex];
+          runOnJS(onHit)(bestSlotIdx);
+          checkedOrbits.value = [...checkedOrbits.value, activeOrbitIndex];
         }
       }
 
-      // Meteor Collision Check (Simple distance-based check)
+      // Meteor Collision Check
       if (onMeteorHit && !meteorHitDone.value) {
-        const meteorPosY = -150; 
+        const meteorPosY = -150;
         const distToMeteor = Math.sqrt(tx * tx + (ty - meteorPosY) * (ty - meteorPosY));
-        
-        if (distToMeteor < 50) { 
+
+        if (distToMeteor < 50) {
           meteorHitDone.value = true;
           runOnJS(onMeteorHit)();
         }
@@ -112,9 +109,9 @@ export const Projectile: React.FC<ProjectileProps> = memo(({
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
-        { translateX: posX.value },
-        { translateY: posY.value },
-        { rotate: `${Math.atan2(initialVelocity.x, -initialVelocity.y) * 180 / Math.PI}deg` }
+      { translateX: posX.value },
+      { translateY: posY.value },
+      { rotate: `${Math.atan2(initialVelocity.x, -initialVelocity.y) * 180 / Math.PI}deg` }
     ],
   }));
 
@@ -128,9 +125,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 6,
     height: 15,
-    backgroundColor: COLORS.primary,
+    backgroundColor: PROJECTILE_COLOR,
     borderRadius: 3,
-    shadowColor: COLORS.primary,
+    shadowColor: PROJECTILE_COLOR,
     shadowRadius: 10,
     shadowOpacity: 1,
     zIndex: 50,

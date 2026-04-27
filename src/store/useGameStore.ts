@@ -18,6 +18,8 @@ interface GameState {
   currentLevelData: LevelConfig | null;
   meteorCurrentHealth: number;
   showTutorialWarning: boolean;
+  levelSessionId: number;
+  levelCompleted: boolean; // Flag to prevent ANY double completion
 
   // Skill System
   unlockedSkills: string[];
@@ -41,6 +43,7 @@ interface GameState {
   incrementPityTimer: () => void;
   resetPityTimer: () => void;
   resetHeroPower: () => void;
+  resetProgress: () => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -57,6 +60,8 @@ export const useGameStore = create<GameState>()(
       activeOrbitIndex: 0,
       meteorCurrentHealth: 0,
       showTutorialWarning: false,
+      levelSessionId: 0,
+      levelCompleted: false,
       unlockedSkills: [],
       skillLevels: {},
       levelsSinceLastDrop: 0,
@@ -73,6 +78,8 @@ export const useGameStore = create<GameState>()(
           activeOrbitIndex: 0,
           meteorCurrentHealth: data.meteorHealth,
           heroPower: 5,
+          levelSessionId: Date.now(),
+          levelCompleted: false, // Reset completion flag for new level
         });
       },
 
@@ -112,12 +119,19 @@ export const useGameStore = create<GameState>()(
 
       completeLevel: (success) => {
         const state = get();
-        
-        // Prevent multiple completions for the same level (idempotency)
+
+        // ABSOLUTE GUARD: If this level is already completed, do nothing.
+        // This is the primary defense against the level-skip bug.
+        if (state.levelCompleted) return;
+
+        // Also reject if we're already in a terminal phase
         if (state.gamePhase === 'WIN' || state.gamePhase === 'GAME_OVER') return;
 
+        // A level can only be won from the battle phase
+        if (success && state.gamePhase !== 'METEOR_PHASE') return;
+
         if (!success) {
-          set({ gamePhase: 'GAME_OVER' });
+          set({ gamePhase: 'GAME_OVER', levelCompleted: true });
           return;
         }
 
@@ -126,7 +140,8 @@ export const useGameStore = create<GameState>()(
         set({
           gamePhase: 'WIN',
           currentLevelIndex: state.currentLevelIndex + 1,
-          gold: state.gold + bonusGold
+          gold: state.gold + bonusGold,
+          levelCompleted: true,
         });
       },
 
@@ -152,14 +167,10 @@ export const useGameStore = create<GameState>()(
       damageMeteor: (amount) => {
         const state = get();
         if (state.gamePhase !== 'METEOR_PHASE') return;
-        
+        if (state.levelCompleted) return;
+
         const newHealth = Math.max(0, state.meteorCurrentHealth - amount);
         set({ meteorCurrentHealth: newHealth });
-
-        // If meteor health is 0, player wins immediately
-        if (newHealth <= 0) {
-          get().completeLevel(true);
-        }
       },
 
       setShowTutorialWarning: (show) => set({ showTutorialWarning: show }),
@@ -175,6 +186,20 @@ export const useGameStore = create<GameState>()(
       resetPityTimer: () => set({ levelsSinceLastDrop: 0 }),
 
       resetHeroPower: () => set({ heroPower: 5 }),
+
+      resetProgress: () => set({
+        currentLevelIndex: 1,
+        gold: 0,
+        highScore: 0,
+        currentScore: 0,
+        unlockedSkills: [],
+        skillLevels: {},
+        levelsSinceLastDrop: 0,
+        heroPower: 5,
+        gamePhase: 'MENU',
+        currentLevelData: null,
+        levelSessionId: 0,
+      }),
     }),
     {
       name: 'math-orbit-hero-storage',

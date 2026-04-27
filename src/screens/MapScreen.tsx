@@ -28,7 +28,7 @@ export const MapScreen = ({ navigation }: any) => {
           {isUnlocked ? (
             <Text style={styles.levelText}>{levelNum}</Text>
           ) : (
-      <View style={[styles.nodeWrapper, { width: 32, height: 32, backgroundColor: COLORS.primary }]} />
+            <View style={[styles.nodeWrapper, { width: 32, height: 32, backgroundColor: COLORS.primary }]} />
           )}
         </TouchableOpacity>
         {isCurrent && (
@@ -48,8 +48,8 @@ export const MapScreen = ({ navigation }: any) => {
           <Text style={styles.goldText}>💰 {gold}</Text>
         </View>
       </View>
-      
-      <ScrollView 
+
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >

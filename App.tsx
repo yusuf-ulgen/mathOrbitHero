@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, memo } from 'react';
+import React, { useState, useCallback, useRef, memo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -12,21 +12,23 @@ import {
   BackHandler,
   Alert
 } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  withTiming, 
-  Easing, 
-  runOnJS 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+  runOnJS
 } from 'react-native-reanimated';
 import { Hero } from './src/components/Hero';
 import { Orbit } from './src/components/Orbit';
 import { Meteor } from './src/components/Meteor';
 import { Projectile } from './src/components/Projectile';
+import { Explosion } from './src/components/Effects';
 import { TutorialAlert } from './src/components/TutorialAlert';
 import { useGameStore } from './src/store/useGameStore';
 import { COLORS } from './src/constants/theme';
 import * as Haptics from 'expo-haptics';
-import { Rocket, Trophy, Play, Home } from 'lucide-react-native';
+import { Rocket, Trophy, Play, Home, RotateCcw } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -70,6 +72,7 @@ export default function App() {
     gameMode,
     currentLevelData,
     activeOrbitIndex,
+    levelCompleted,
     startLevel,
     setGameMode,
     applyMathOp,
@@ -79,6 +82,7 @@ export default function App() {
     resetToMenu,
     skipOrbit,
     damageMeteor,
+    resetProgress,
     showTutorialWarning,
     setShowTutorialWarning
   } = useGameStore();
@@ -89,6 +93,15 @@ export default function App() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [currentDrag, setCurrentDrag] = useState({ x: 0, y: 0 });
   const [showExitModal, setShowExitModal] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(true); // Show tutorial on first level
+
+  // New Battle Phase State
+  const [battleShots, setBattleShots] = useState<number[]>([]);
+  const [currentShotIndex, setCurrentShotIndex] = useState(-1);
+  const [meteorArrived, setMeteorArrived] = useState(false);
+  const [showExplosion, setShowExplosion] = useState(false);
+  const [battleDone, setBattleDone] = useState(false);
+  const shotsFiredRef = useRef(0);
 
   const gamePhaseRef = useRef(gamePhase);
   const isShootingRef = useRef(activeProjectile);
@@ -101,20 +114,41 @@ export default function App() {
     isShootingRef.current = activeProjectile;
   }, [activeProjectile]);
 
+  // Handle Battle Phase Initiation
   React.useEffect(() => {
     if (gamePhase === 'METEOR_PHASE') {
-      const timer = setTimeout(() => {
-        // Double check phase hasn't changed during timeout
-        if (gamePhaseRef.current !== 'METEOR_PHASE') return;
+      const latestPower = useGameStore.getState().heroPower;
+      const currentHealth = useGameStore.getState().meteorCurrentHealth;
+      // Calculate 5 shots to kill or deal max damage
+      const totalToDeal = Math.min(latestPower, currentHealth);
+      const perShot = Math.floor(totalToDeal / 5);
+      const remainder = totalToDeal - perShot * 4;
 
-        setShotVector({ x: 0, y: -1 });
-        setActiveProjectile(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      }, 1000); // 1-second delay for cinematic effect
-
-      return () => clearTimeout(timer);
+      setBattleShots([perShot, perShot, perShot, perShot, remainder]);
+      setCurrentShotIndex(-1);
+      setMeteorArrived(false);
+      setShowExplosion(false);
+      setBattleDone(false);
+      shotsFiredRef.current = 0;
     }
   }, [gamePhase]);
+
+  // Hero animated position
+  const heroPos = useSharedValue(0);
+
+  useEffect(() => {
+    if (gamePhase === 'METEOR_PHASE') {
+      heroPos.value = withTiming(1, { duration: 600 });
+    } else {
+      heroPos.value = 0;
+    }
+  }, [gamePhase]);
+
+  const animatedHeroStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: heroPos.value * (height / 2 - 130) }
+    ],
+  }));
 
   // Back Handler logic
   React.useEffect(() => {
@@ -123,7 +157,7 @@ export default function App() {
         // On menu, standard behavior (exit)
         return false;
       }
-      
+
       if (gamePhase === 'ORBIT_PHASE' || gamePhase === 'METEOR_PHASE') {
         setShowExitModal(true);
         return true;
@@ -197,6 +231,9 @@ export default function App() {
   const onProjectileHit = useCallback((bestSlotIdx: number) => {
     setActiveProjectile(false);
 
+    // Don't apply math during meteor battle phase
+    if (gamePhaseRef.current !== 'ORBIT_PHASE') return;
+
     if (!currentLevelData) return;
 
     const orbit = currentLevelData.orbits[activeOrbitIndex];
@@ -221,19 +258,56 @@ export default function App() {
     orbitStartTime.current = Date.now();
   }, [skipOrbit]);
 
+  const onMeteorArrived = useCallback(() => {
+    // Only set arrived to true, don't start firing immediately to give user a breath
+    setMeteorArrived(true);
+
+    // Give 1.5 seconds of cinematic pause before first shot starts
+    setTimeout(() => {
+      if (gamePhaseRef.current === 'METEOR_PHASE') {
+        setCurrentShotIndex(0);
+      }
+    }, 1500);
+  }, []);
+
   const onMeteorHit = useCallback(() => {
+    if (battleDone) return;
+
+    const damage = battleShots[currentShotIndex];
+    const currentHealth = useGameStore.getState().meteorCurrentHealth;
+    const remainingHealth = Math.max(0, currentHealth - damage);
+
     setActiveProjectile(false);
-    damageMeteor(heroPower);
+    damageMeteor(damage);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-  }, [heroPower, damageMeteor]);
 
-  const onMeteorCollision = () => {
-    if (!currentLevelData) return;
+    shotsFiredRef.current = currentShotIndex + 1;
 
-    const isSuccess = heroPower >= currentLevelData.meteorHealth;
-    completeLevel(isSuccess);
-    Haptics.notificationAsync(isSuccess ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
-  };
+    if (remainingHealth <= 0) {
+      setBattleDone(true);
+      setShowExplosion(true);
+      // Success fallback
+      setTimeout(() => completeLevel(true), 1500);
+      return;
+    }
+
+    // Next shot
+    if (currentShotIndex < 4) {
+      setTimeout(() => {
+        setCurrentShotIndex(currentShotIndex + 1);
+      }, 500);
+    } else {
+      setBattleDone(true);
+      setTimeout(() => completeLevel(false), 800);
+    }
+  }, [battleDone, battleShots, currentShotIndex, damageMeteor, completeLevel]);
+
+  useEffect(() => {
+    if (currentShotIndex >= 0 && meteorArrived && !battleDone) {
+      setShotVector({ x: 0, y: -1 });
+      setActiveProjectile(true);
+    }
+  }, [currentShotIndex, meteorArrived, battleDone]);
 
   // Render Screens
   if (gamePhase === 'MENU') {
@@ -252,6 +326,23 @@ export default function App() {
           >
             <Play color="#fff" size={24} />
             <Text style={styles.menuButtonText}>OYUNA BAŞLA (Bölüm {currentLevelIndex})</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.resetButton}
+            onPress={() => {
+              Alert.alert(
+                "Sıfırla",
+                "Tüm ilerlemeniz sıfırlanacak. Emin misiniz?",
+                [
+                  { text: "İptal", style: "cancel" },
+                  { text: "Evet, Sıfırla", style: "destructive", onPress: resetProgress }
+                ]
+              );
+            }}
+          >
+            <RotateCcw color={COLORS.textSecondary} size={16} />
+            <Text style={styles.resetButtonText}>İlerlemeyi Sıfırla</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -288,8 +379,8 @@ export default function App() {
             <Text style={styles.hudLabel}>KALAN YÖRÜNGE</Text>
             <View style={styles.orbitalCounter}>
               <Text style={styles.orbitalValue}>
-                {gamePhase === 'METEOR_PHASE' || gamePhase === 'WIN' || gamePhase === 'GAME_OVER' 
-                  ? 0 
+                {gamePhase === 'METEOR_PHASE' || gamePhase === 'WIN' || gamePhase === 'GAME_OVER'
+                  ? 0
                   : (currentLevelData ? Math.max(0, currentLevelData.orbits.length - activeOrbitIndex) : 0)}
               </Text>
               <Rocket size={16} color={COLORS.primary} style={{ marginLeft: 5 }} />
@@ -319,24 +410,34 @@ export default function App() {
           />
         )}
 
-        {gamePhase === 'METEOR_PHASE' && (
-          <Meteor
-            health={meteorCurrentHealth}
-            currentPower={heroPower}
-            onCollision={onMeteorCollision}
-          />
+        {gamePhase === 'METEOR_PHASE' && !showExplosion && (
+          <View style={styles.meteorContainer}>
+            <Meteor
+              health={meteorCurrentHealth}
+              maxHealth={currentLevelData?.meteorHealth || 100}
+              onArrived={onMeteorArrived}
+            />
+          </View>
         )}
 
-        <Hero
-          value={heroPower}
-          isShooting={activeProjectile}
-          dragVector={isDragging ? currentDrag : null}
-        />
+        <Animated.View style={animatedHeroStyle}>
+          <Hero
+            value={heroPower}
+            isShooting={activeProjectile}
+            dragVector={isDragging ? currentDrag : null}
+          />
+        </Animated.View>
+
+        {showExplosion && (
+          <View style={[styles.explosionContainer, { top: 120 + 50 }]}>
+            <Explosion active={true} onComplete={() => { }} />
+          </View>
+        )}
 
         {activeProjectile && currentLevelData && (
           <Projectile
             initialVelocity={shotVector}
-            activeOrbitRadius={currentLevelData.orbits[activeOrbitIndex].radius}
+            activeOrbitRadius={currentLevelData.orbits[activeOrbitIndex]?.radius || 0}
             allOrbits={currentLevelData.orbits}
             activeOrbitIndex={activeOrbitIndex}
             onHit={onProjectileHit}
@@ -403,6 +504,37 @@ export default function App() {
               <Text style={styles.overlayButtonText}>
                 {gamePhase === 'WIN' ? 'SIRADAKİ BÖLÜM' : 'MENÜYE DÖN'}
               </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Tutorial Overlay - Shows on first level */}
+      {showTutorial && currentLevelIndex <= 2 && gamePhase === 'ORBIT_PHASE' && (
+        <View style={styles.overlay}>
+          <View style={styles.overlayBox}>
+            <Text style={[styles.overlayTitle, { fontSize: 26 }]}>NASIL OYNANIR?</Text>
+
+            <View style={styles.tutorialItem}>
+              <Text style={styles.tutorialEmoji}>🎯</Text>
+              <Text style={styles.tutorialDesc}>Ekrana basılı tut, geri çek ve bırak! Mermi yörüngeye doğru ateşlenir.</Text>
+            </View>
+
+            <View style={styles.tutorialItem}>
+              <Text style={styles.tutorialEmoji}>💎</Text>
+              <Text style={styles.tutorialDesc}>Yörüngelerdeki matematik işlemleri gücünü artırır veya azaltır. Yeşiller iyi, kırmızılar kötü!</Text>
+            </View>
+
+            <View style={styles.tutorialItem}>
+              <Text style={styles.tutorialEmoji}>☄️</Text>
+              <Text style={styles.tutorialDesc}>Tüm yörüngelerden geçtikten sonra meteora karşı savaşırsın. Gücün yeterliyse kazanırsın!</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.overlayButton, { backgroundColor: COLORS.primary, marginTop: 20 }]}
+              onPress={() => setShowTutorial(false)}
+            >
+              <Text style={[styles.overlayButtonText, { color: '#000', fontWeight: '900' }]}>ANLADIM, BAŞLAYALIM!</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -485,6 +617,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     marginTop: 2,
+  },
+  resetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    marginTop: 10,
+  },
+  resetButtonText: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    marginLeft: 8,
+    letterSpacing: 0.5,
   },
   hud: {
     position: 'absolute',
@@ -591,5 +741,40 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  tutorialItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    marginTop: 10,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  tutorialEmoji: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  tutorialDesc: {
+    flex: 1,
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  meteorContainer: {
+    position: 'absolute',
+    top: 120,
+    width: '100%',
+    alignItems: 'center',
+    zIndex: 200,
+  },
+  explosionContainer: {
+    position: 'absolute',
+    width: '100%',
+    alignItems: 'center',
+    zIndex: 300,
   },
 });
