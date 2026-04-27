@@ -328,22 +328,6 @@ export default function App() {
             <Text style={styles.menuButtonText}>OYUNA BAŞLA (Bölüm {currentLevelIndex})</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.resetButton}
-            onPress={() => {
-              Alert.alert(
-                "Sıfırla",
-                "Tüm ilerlemeniz sıfırlanacak. Emin misiniz?",
-                [
-                  { text: "İptal", style: "cancel" },
-                  { text: "Evet, Sıfırla", style: "destructive", onPress: resetProgress }
-                ]
-              );
-            }}
-          >
-            <RotateCcw color={COLORS.textSecondary} size={16} />
-            <Text style={styles.resetButtonText}>İlerlemeyi Sıfırla</Text>
-          </TouchableOpacity>
         </View>
       </View>
     );
