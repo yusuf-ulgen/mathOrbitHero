@@ -2,7 +2,7 @@
   "expo": {
     "name": "Math Orbit Hero",
     "slug": "math-orbit-hero",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "com.yusufulgen.mathorbitalhero",
-      "versionCode": 4,
+      "versionCode": 5,
       "backgroundColor": "#0c121e",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
