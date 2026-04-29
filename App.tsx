@@ -98,6 +98,7 @@ export default function App() {
   // New Battle Phase State
   const [battleShots, setBattleShots] = useState<number[]>([]);
   const [currentShotIndex, setCurrentShotIndex] = useState(-1);
+  const [initialHeroPower, setInitialHeroPower] = useState(0); // Added to track power at battle start
   const [meteorArrived, setMeteorArrived] = useState(false);
   const [showExplosion, setShowExplosion] = useState(false);
   const [battleDone, setBattleDone] = useState(false);
@@ -119,12 +120,21 @@ export default function App() {
     if (gamePhase === 'METEOR_PHASE') {
       const latestPower = useGameStore.getState().heroPower;
       const currentHealth = useGameStore.getState().meteorCurrentHealth;
-      // Calculate 5 shots to kill or deal max damage
-      const totalToDeal = Math.min(latestPower, currentHealth);
-      const perShot = Math.floor(totalToDeal / 5);
-      const remainder = totalToDeal - perShot * 4;
+      setInitialHeroPower(latestPower); // Store initial power for game over screen
 
-      setBattleShots([perShot, perShot, perShot, perShot, remainder]);
+      // Calculate shots to kill or deal max damage
+      const totalToDeal = Math.min(latestPower, currentHealth);
+
+      // If hero has less than 10 power, use a single shot
+      if (latestPower < 10) {
+        setBattleShots([totalToDeal]);
+      } else {
+        // Divide into 5 shots
+        const perShot = Math.floor(totalToDeal / 5);
+        const remainder = totalToDeal - perShot * 4;
+        setBattleShots([perShot, perShot, perShot, perShot, remainder]);
+      }
+
       setCurrentShotIndex(-1);
       setMeteorArrived(false);
       setShowExplosion(false);
@@ -292,7 +302,7 @@ export default function App() {
     }
 
     // Next shot
-    if (currentShotIndex < 4) {
+    if (currentShotIndex < battleShots.length - 1) {
       setTimeout(() => {
         setCurrentShotIndex(currentShotIndex + 1);
       }, 500);
@@ -347,19 +357,19 @@ export default function App() {
       {/* HUD */}
       <SafeAreaView style={styles.hud}>
         <View style={styles.hudRow}>
-          {/* Left Section: Home & Level */}
-          <View style={styles.hudSectionLeft}>
-            <TouchableOpacity onPress={() => setShowExitModal(true)} style={styles.homeButton}>
-              <Home color={COLORS.primary} size={24} />
-            </TouchableOpacity>
-            <View>
-              <Text style={styles.hudLabel}>BÖLÜM</Text>
-              <Text style={styles.hudValue}>{currentLevelIndex}</Text>
-            </View>
+          {/* Home Button */}
+          <TouchableOpacity onPress={() => setShowExitModal(true)} style={styles.hudHomeSection}>
+            <Home color={COLORS.primary} size={24} />
+          </TouchableOpacity>
+
+          {/* Level Section */}
+          <View style={styles.hudSection}>
+            <Text style={styles.hudLabel}>BÖLÜM</Text>
+            <Text style={styles.hudValue}>{currentLevelIndex}</Text>
           </View>
 
-          {/* Center Section: Orbital Counter */}
-          <View style={styles.hudSectionCenter}>
+          {/* Orbits Section */}
+          <View style={styles.hudSection}>
             <Text style={styles.hudLabel}>KALAN YÖRÜNGE</Text>
             <View style={styles.orbitalCounter}>
               <Text style={styles.orbitalValue}>
@@ -367,14 +377,14 @@ export default function App() {
                   ? 0
                   : (currentLevelData ? Math.max(0, currentLevelData.orbits.length - activeOrbitIndex) : 0)}
               </Text>
-              <Rocket size={16} color={COLORS.primary} style={{ marginLeft: 5 }} />
+              <Rocket size={14} color={COLORS.primary} style={{ marginLeft: 4 }} />
             </View>
           </View>
 
-          {/* Right Section: Hero Power */}
-          <View style={styles.hudSectionRight}>
+          {/* Power Section */}
+          <View style={styles.hudSection}>
             <Text style={styles.hudLabel}>GÜÇ PUANI</Text>
-            <Text style={[styles.hudValue, { color: COLORS.primary }]}>{heroPower}</Text>
+            <Text style={styles.hudValue} numberOfLines={1}>{heroPower}</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -457,7 +467,7 @@ export default function App() {
             <Text style={styles.overlaySub}>
               {gamePhase === 'WIN'
                 ? `Bölüm ${currentLevelIndex} tamamlandı!`
-                : `Göktaşı gücü (${currentLevelData?.meteorHealth}) senin gücünden (${heroPower}) fazlaydı.`}
+                : `Göktaşı gücü (${currentLevelData?.meteorHealth}) senin gücünden (${initialHeroPower}) fazlaydı.`}
             </Text>
 
             {gamePhase === 'GAME_OVER' && (
@@ -634,29 +644,36 @@ const styles = StyleSheet.create({
   },
   hudLabel: {
     color: COLORS.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
   hudValue: {
     color: '#fff',
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900',
   },
-  hudSectionLeft: {
+  hudSection: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  hudSectionCenter: {
-    flex: 1.2, // Give slightly more space to long "KALAN YÖRÜNGE" text
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingVertical: 8,
+    marginHorizontal: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
-  hudSectionRight: {
-    flex: 1,
-    alignItems: 'flex-end',
+  hudHomeSection: {
+    width: 45,
+    height: 45,
+    alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    marginRight: 5,
   },
   homeButton: {
     marginRight: 10,

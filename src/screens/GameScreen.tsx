@@ -68,6 +68,7 @@ export const GameScreen = ({ route, navigation }: any) => {
   // Battle State
   const [battleShots, setBattleShots] = useState<number[]>([]);
   const [currentShotIndex, setCurrentShotIndex] = useState(-1);
+  const [initialHeroPower, setInitialHeroPower] = useState(0); // Track power at battle start
   const [meteorArrived, setMeteorArrived] = useState(false);
   const [showExplosion, setShowExplosion] = useState(false);
   const [battleDone, setBattleDone] = useState(false);
@@ -247,27 +248,33 @@ export const GameScreen = ({ route, navigation }: any) => {
     // Read the latest state
     const latestPower = useGameStore.getState().heroPower;
     const currentMeteorHealth = useGameStore.getState().meteorCurrentHealth;
+    setInitialHeroPower(latestPower); // Store initial power
     
     // Safety: If for some reason hero power is huge, we use meteor health as base for shots
     // to ensure it hits exactly 0.
     const totalDamageToDeal = Math.min(latestPower, currentMeteorHealth);
     
-    // Divide the power into 5 shots
-    const perShot = Math.floor(totalDamageToDeal / 5);
-    const remainder = totalDamageToDeal - perShot * 4;
-    
-    // If hero power is enough to kill, ensure the last shot deals the exact remainder
-    const shots = [perShot, perShot, perShot, perShot, remainder];
-    
-    // If hero power is NOT enough, we still do 5 shots but meteor won't die (unless we buff shots)
-    // To make it fun, if heroPower is close to health, we let them win
-    if (latestPower >= currentMeteorHealth * 0.9) {
-      // Close enough! Adjust shots to kill
-      const adjustPerShot = Math.floor(currentMeteorHealth / 5);
-      const adjustRemainder = currentMeteorHealth - adjustPerShot * 4;
-      setBattleShots([adjustPerShot, adjustPerShot, adjustPerShot, adjustPerShot, adjustRemainder]);
+    // If hero power is less than 10, use a single shot
+    if (latestPower < 10) {
+      setBattleShots([totalDamageToDeal]);
     } else {
-      setBattleShots(shots);
+      // Divide the power into 5 shots
+      const perShot = Math.floor(totalDamageToDeal / 5);
+      const remainder = totalDamageToDeal - perShot * 4;
+      
+      // If hero power is enough to kill, ensure the last shot deals the exact remainder
+      const shots = [perShot, perShot, perShot, perShot, remainder];
+      
+      // If hero power is NOT enough, we still do 5 shots but meteor won't die (unless we buff shots)
+      // To make it fun, if heroPower is close to health, we let them win
+      if (latestPower >= currentMeteorHealth * 0.9) {
+        // Close enough! Adjust shots to kill
+        const adjustPerShot = Math.floor(currentMeteorHealth / 5);
+        const adjustRemainder = currentMeteorHealth - adjustPerShot * 4;
+        setBattleShots([adjustPerShot, adjustPerShot, adjustPerShot, adjustPerShot, adjustRemainder]);
+      } else {
+        setBattleShots(shots);
+      }
     }
     
     setCurrentShotIndex(-1);
@@ -319,7 +326,7 @@ export const GameScreen = ({ route, navigation }: any) => {
     }
 
     // Fire next shot if available
-    if (shotIndex < 4) {
+    if (shotIndex < battleShots.length - 1) {
       setTimeout(() => {
         setCurrentShotIndex(shotIndex + 1);
       }, 500); // Delay between shots
@@ -345,7 +352,7 @@ export const GameScreen = ({ route, navigation }: any) => {
         <View style={styles.hud}>
           <View style={styles.hudItem}>
             <Zap color={COLORS.primary} size={20} />
-            <Text style={styles.hudText}>{heroPower}</Text>
+            <Text style={styles.hudText} numberOfLines={1}>{heroPower}</Text>
           </View>
           <View style={styles.hudItem}>
             <Timer color={COLORS.secondary} size={20} />
@@ -584,6 +591,8 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+    minWidth: 80,
+    justifyContent: 'center',
   },
   hudText: {
     color: '#fff',

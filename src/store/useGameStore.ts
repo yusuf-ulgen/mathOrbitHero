@@ -169,8 +169,13 @@ export const useGameStore = create<GameState>()(
         if (state.gamePhase !== 'METEOR_PHASE') return;
         if (state.levelCompleted) return;
 
-        const newHealth = Math.max(0, state.meteorCurrentHealth - amount);
-        set({ meteorCurrentHealth: newHealth });
+        const newMeteorHealth = Math.max(0, state.meteorCurrentHealth - amount);
+        const newHeroPower = Math.max(0, state.heroPower - amount);
+
+        set({ 
+          meteorCurrentHealth: newMeteorHealth,
+          heroPower: newHeroPower
+        });
       },
 
       setShowTutorialWarning: (show) => set({ showTutorialWarning: show }),
