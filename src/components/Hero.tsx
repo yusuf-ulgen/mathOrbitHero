@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderBottomColor: COLORS.primary,
-    transform: [{ rotate: '0deg' }],
+    transform: [{ rotate: '180deg' }],
     marginTop: -10,
   },
 });
