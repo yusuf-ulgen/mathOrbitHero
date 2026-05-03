@@ -384,7 +384,7 @@ export default function App() {
           {/* Power Section */}
           <View style={styles.hudSection}>
             <Text style={styles.hudLabel}>GÜÇ PUANI</Text>
-            <Text style={styles.hudValue} numberOfLines={1}>{heroPower}</Text>
+            <Text style={styles.hudValue}>{heroPower}</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -400,8 +400,7 @@ export default function App() {
             rotationSpeed={currentLevelData.orbits[activeOrbitIndex].rotationSpeed}
             slots={currentLevelData.orbits[activeOrbitIndex].slots}
             isActive={true}
-            initialRotation={currentLevelData.orbits[activeOrbitIndex].initialRotation}
-          />
+            initialRotation={currentLevelData.orbits[activeOrbitIndex].initialRotation} isPaused={false} />
         )}
 
         {gamePhase === 'METEOR_PHASE' && !showExplosion && (

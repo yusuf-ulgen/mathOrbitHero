@@ -29,7 +29,7 @@ export const Hero: React.FC<HeroProps> = memo(({ value, isShooting, dragVector }
     <View style={styles.container}>
       {/* Power Label Above Head */}
       <View style={styles.powerLabel}>
-        <Text style={styles.powerText} numberOfLines={1}>{value}</Text>
+        <Text style={styles.powerText}>{value}</Text>
       </View>
       
       <Animated.View style={[styles.heroBody, animatedStyle]}>
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.primary,
-    minWidth: 50,
+    minWidth: 65,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',

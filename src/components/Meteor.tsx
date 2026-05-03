@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
     backgroundColor: 'rgba(0,0,0,0.85)',
     top: -25,
-    minWidth: 50,
+    minWidth: 70,
     alignItems: 'center',
   },
   healthText: {

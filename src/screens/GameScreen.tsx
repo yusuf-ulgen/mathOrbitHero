@@ -352,7 +352,7 @@ export const GameScreen = ({ route, navigation }: any) => {
         <View style={styles.hud}>
           <View style={styles.hudItem}>
             <Zap color={COLORS.primary} size={20} />
-            <Text style={styles.hudText} numberOfLines={1}>{heroPower}</Text>
+            <Text style={styles.hudText}>{heroPower}</Text>
           </View>
           <View style={styles.hudItem}>
             <Timer color={COLORS.secondary} size={20} />
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
-    minWidth: 80,
+    minWidth: 100,
     justifyContent: 'center',
   },
   hudText: {
