@@ -8,11 +8,19 @@ export interface MathSlot {
   label: string;
 }
 
+export interface AsteroidData {
+  angle: number;
+  width: number;
+  oscillationRange: number;
+  oscillationSpeed: number;
+}
+
 export interface OrbitData {
   radius: number;
   rotationSpeed: number;
   slots: MathSlot[];
   initialRotation: number;
+  asteroids: AsteroidData[];
 }
 
 export interface LevelConfig {
@@ -76,11 +84,27 @@ export const generateLevel = (levelId: number): LevelConfig => {
   const orbits: OrbitData[] = [];
   
   for (let i = 0; i < orbitCount; i++) {
+    const asteroids: AsteroidData[] = [];
+    
+    // Add asteroids for higher levels
+    if (levelId >= 3) {
+      const asteroidCount = Math.min(Math.floor(levelId / 5) + 1, 2);
+      for (let j = 0; j < asteroidCount; j++) {
+        asteroids.push({
+          angle: rng.nextInt(0, 359),
+          width: rng.nextInt(15, 25),
+          oscillationRange: rng.nextInt(10, 30),
+          oscillationSpeed: rng.nextInt(2000, 4000),
+        });
+      }
+    }
+
     orbits.push({
       radius: Math.min(100 + (i * 40), 220),
       rotationSpeed: baseSpeed + (rng.nextInt(-1000, 1000)),
       slots: slotsData[i],
       initialRotation: rng.nextInt(0, 359),
+      asteroids,
     });
   }
 

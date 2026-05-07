@@ -13,6 +13,7 @@ import { COLORS } from '../constants/theme';
 import { Orbit } from '../components/Orbit';
 import { Hero } from '../components/Hero';
 import { Meteor } from '../components/Meteor';
+import { Asteroid } from '../components/Asteroid';
 import { BattleProjectile } from '../components/BattleProjectile';
 import { ScreenShake, Explosion } from '../components/Effects';
 import { Timer, Zap, Pause, Play, Home, RotateCcw } from 'lucide-react-native';
@@ -45,7 +46,8 @@ export const GameScreen = ({ route, navigation }: any) => {
     resetHeroPower,
     startLevel,
     meteorCurrentHealth,
-    damageMeteor
+    damageMeteor,
+    destroyAsteroid
   } = useGameStore();
 
   const [levelStartTime, setLevelStartTime] = useState<number>(Date.now());
@@ -59,7 +61,7 @@ export const GameScreen = ({ route, navigation }: any) => {
   const [pausedTime, setPausedTime] = useState(0);
   const [pauseStart, setPauseStart] = useState<number | null>(level === 1 ? Date.now() : null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(level === 1);
+  const [showTutorial, setShowTutorial] = useState(level === 1 || level === 3);
 
   // Slingshot State
   const [dragStart, setDragStart] = useState<{ x: number, y: number } | null>(null);
@@ -194,6 +196,37 @@ export const GameScreen = ({ route, navigation }: any) => {
 
     let shotAngle = (angle * 180 / Math.PI + 90) % 360;
     if (shotAngle < 0) shotAngle += 360;
+
+    // --- Asteroid Collision Check ---
+    const gameTime = currentTime - levelStartTime - pausedTime;
+    
+    const hitAsteroidIdx = activeOrbit.asteroids.findIndex(asteroid => {
+      const cycle = 2 * asteroid.oscillationSpeed;
+      const aElapsed = gameTime % cycle;
+      const p = aElapsed < asteroid.oscillationSpeed 
+        ? aElapsed / asteroid.oscillationSpeed 
+        : 1 - (aElapsed - asteroid.oscillationSpeed) / asteroid.oscillationSpeed;
+      
+      const sineP = (1 - Math.cos(p * Math.PI)) / 2;
+      const currentOsc = (sineP * asteroid.oscillationRange) - (asteroid.oscillationRange / 2);
+      const currentAstAngle = (asteroid.angle + currentOsc + 360) % 360;
+      
+      let diff = Math.abs(shotAngle - currentAstAngle);
+      if (diff > 180) diff = 360 - diff;
+      return diff <= asteroid.width / 2;
+    });
+
+    if (hitAsteroidIdx !== -1) {
+      // Destroy asteroid
+      destroyAsteroid(activeOrbitIndex, hitAsteroidIdx);
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setShake(true);
+      setTimeout(() => setShake(false), 200);
+      setIsProcessing(false);
+      return;
+    }
+    // --------------------------------
 
     // +60 degrees offset added to center the hit logic with visual slots
     const slotAngle = (shotAngle - currentRotation + 360 + 60) % 360;
@@ -404,6 +437,7 @@ export const GameScreen = ({ route, navigation }: any) => {
               isActive={idx === activeOrbitIndex}
               initialRotation={orbit.initialRotation}
               isPaused={isPaused}
+              asteroids={orbit.asteroids}
             />
           ))}
           
@@ -443,7 +477,7 @@ export const GameScreen = ({ route, navigation }: any) => {
           {/* Explosion */}
           {showExplosion && (
             <View style={[styles.explosionContainer, { top: METEOR_TOP_Y + 50 }]}>
-              <Explosion active={true} onComplete={onExplosionComplete} />
+              <Explosion active={true} onComplete={onExplosionComplete} size={2.5} />
             </View>
           )}
         </View>
@@ -534,19 +568,47 @@ export const GameScreen = ({ route, navigation }: any) => {
         {showTutorial && (
           <View style={styles.modalOverlay}>
             <View style={styles.tutorialBox}>
-              <Text style={styles.tutorialTitle}>NASIL OYNANIR?</Text>
-              <View style={styles.tutorialItem}>
-                <Text style={styles.tutorialEmoji}>🎯</Text>
-                <Text style={styles.tutorialText}>Ekrana basılı tutup geri çekerek nişan al ve fırlat!</Text>
-              </View>
-              <View style={styles.tutorialItem}>
-                <Text style={styles.tutorialEmoji}>💎</Text>
-                <Text style={styles.tutorialText}>Yörüngelerdeki matematik işlemlerini toplayarak gücünü artır.</Text>
-              </View>
-              <View style={styles.tutorialItem}>
-                <Text style={styles.tutorialEmoji}>👾</Text>
-                <Text style={styles.tutorialText}>Yeterli güce ulaştığında son aşamadaki meteoru yok et!</Text>
-              </View>
+              <Text style={styles.tutorialTitle}>
+                {level === 3 ? 'YENİ TEHLİKE!' : 'NASIL OYNANIR?'}
+              </Text>
+              
+              {level === 1 ? (
+                <>
+                  <View style={styles.tutorialItem}>
+                    <Text style={styles.tutorialEmoji}>🎯</Text>
+                    <Text style={styles.tutorialText}>Ekrana basılı tutup geri çekerek nişan al ve fırlat!</Text>
+                  </View>
+                  <View style={styles.tutorialItem}>
+                    <Text style={styles.tutorialEmoji}>💎</Text>
+                    <Text style={styles.tutorialText}>Yörüngelerdeki matematik işlemlerini toplayarak gücünü artır.</Text>
+                  </View>
+                  <View style={styles.tutorialItem}>
+                    <Text style={styles.tutorialEmoji}>👾</Text>
+                    <Text style={styles.tutorialText}>Yeterli güce ulaştığında son aşamadaki meteoru yok et!</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.asteroidPreview}>
+                    <Asteroid 
+                      radius={0} 
+                      angle={0} 
+                      width={20} 
+                      oscillationRange={40} 
+                      oscillationSpeed={2000} 
+                      isPaused={false} 
+                    />
+                  </View>
+                  <View style={styles.tutorialItem}>
+                    <Text style={styles.tutorialEmoji}>🪨</Text>
+                    <Text style={styles.tutorialText}>Dikkat! Yörüngelerin önünde yüzen asteroidler belirdi.</Text>
+                  </View>
+                  <View style={styles.tutorialItem}>
+                    <Text style={styles.tutorialEmoji}>🚫</Text>
+                    <Text style={styles.tutorialText}>Onlara çarparsan atışın boşa gider. Zamanlamanı iyi ayarla!</Text>
+                  </View>
+                </>
+              )}
 
               <TouchableOpacity
                 style={styles.tutorialButton}
@@ -797,5 +859,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 10,
+  },
+  asteroidPreview: {
+    height: 100,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 20,
   }
 });

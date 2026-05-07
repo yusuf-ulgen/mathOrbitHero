@@ -10,7 +10,9 @@ import Animated, {
   cancelAnimation
 } from 'react-native-reanimated';
 import { COLORS } from '../constants/theme';
-import { MathSlot } from '../utils/levelGenerator';
+import { MathSlot, AsteroidData } from '../utils/levelGenerator';
+import { Asteroid } from './Asteroid';
+import { useGameStore } from '../store/useGameStore';
 
 interface OrbitProps {
   radius: number;
@@ -19,6 +21,7 @@ interface OrbitProps {
   isActive: boolean;
   initialRotation: number;
   isPaused: boolean;
+  asteroids: AsteroidData[];
 }
 
 export const Orbit: React.FC<OrbitProps> = memo(({ 
@@ -27,9 +30,13 @@ export const Orbit: React.FC<OrbitProps> = memo(({
   slots, 
   isActive, 
   initialRotation,
-  isPaused
+  isPaused,
+  asteroids
 }) => {
   const rotation = useSharedValue(initialRotation);
+  const activeOrbitIndex = useGameStore(s => s.activeOrbitIndex);
+  const destroyedAsteroids = useGameStore(s => s.destroyedAsteroids);
+
   const circumference = 2 * Math.PI * radius;
   const strokeDash = circumference / 3;
 
@@ -110,6 +117,23 @@ export const Orbit: React.FC<OrbitProps> = memo(({
           );
         })}
       </Animated.View>
+      
+      {asteroids && asteroids.map((asteroid, i) => {
+        const isDestroyed = destroyedAsteroids.includes(`${activeOrbitIndex}-${i}`);
+        
+        return (
+          <Asteroid
+            key={`asteroid-${i}`}
+            radius={radius - 20}
+            angle={asteroid.angle}
+            width={asteroid.width}
+            oscillationRange={asteroid.oscillationRange}
+            oscillationSpeed={asteroid.oscillationSpeed}
+            isPaused={isPaused}
+            isDestroyed={isDestroyed}
+          />
+        );
+      })}
     </View>
   );
 });

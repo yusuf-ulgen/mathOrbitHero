@@ -25,6 +25,7 @@ interface GameState {
   unlockedSkills: string[];
   skillLevels: Record<string, number>;
   levelsSinceLastDrop: number;
+  destroyedAsteroids: string[]; // Format: "orbitIdx-asteroidIdx"
 
   // Actions
   setGameMode: (mode: 'LEVEL') => void;
@@ -44,6 +45,7 @@ interface GameState {
   resetPityTimer: () => void;
   resetHeroPower: () => void;
   resetProgress: () => void;
+  destroyAsteroid: (orbitIdx: number, asteroidIdx: number) => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -65,6 +67,7 @@ export const useGameStore = create<GameState>()(
       unlockedSkills: [],
       skillLevels: {},
       levelsSinceLastDrop: 0,
+      destroyedAsteroids: [],
 
       setGameMode: (mode) => set({ gameMode: mode, currentScore: 0 }),
 
@@ -80,6 +83,7 @@ export const useGameStore = create<GameState>()(
           heroPower: 5,
           levelSessionId: Date.now(),
           levelCompleted: false, // Reset completion flag for new level
+          destroyedAsteroids: [],
         });
       },
 
@@ -204,7 +208,17 @@ export const useGameStore = create<GameState>()(
         gamePhase: 'MENU',
         currentLevelData: null,
         levelSessionId: 0,
+        destroyedAsteroids: [],
       }),
+
+      destroyAsteroid: (orbitIdx, asteroidIdx) => {
+        const id = `${orbitIdx}-${asteroidIdx}`;
+        if (!get().destroyedAsteroids.includes(id)) {
+          set((state) => ({
+            destroyedAsteroids: [...state.destroyedAsteroids, id]
+          }));
+        }
+      },
     }),
     {
       name: 'math-orbit-hero-storage',

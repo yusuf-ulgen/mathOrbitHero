@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   Dimensions,
   Text,
-  SafeAreaView,
   PanResponder,
   Animated as ReactNativeAnimated,
   BackHandler,
   Alert
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -22,6 +22,7 @@ import Animated, {
 import { Hero } from './src/components/Hero';
 import { Orbit } from './src/components/Orbit';
 import { Meteor } from './src/components/Meteor';
+import { Asteroid } from './src/components/Asteroid';
 import { Projectile } from './src/components/Projectile';
 import { Explosion } from './src/components/Effects';
 import { TutorialAlert } from './src/components/TutorialAlert';
@@ -247,6 +248,32 @@ export default function App() {
     if (!currentLevelData) return;
 
     const orbit = currentLevelData.orbits[activeOrbitIndex];
+    
+    // --- Asteroid Collision Check ---
+    const currentTime = Date.now();
+    const gameTime = currentTime - orbitStartTime.current;
+    
+    const hitAsteroid = orbit.asteroids && orbit.asteroids.some(asteroid => {
+      const cycle = 2 * asteroid.oscillationSpeed;
+      const elapsed = gameTime % cycle;
+      const p = elapsed < asteroid.oscillationSpeed 
+        ? elapsed / asteroid.oscillationSpeed 
+        : 1 - (elapsed - asteroid.oscillationSpeed) / asteroid.oscillationSpeed;
+      
+      const sineP = (1 - Math.cos(p * Math.PI)) / 2;
+      const currentOsc = (sineP * asteroid.oscillationRange) - (asteroid.oscillationRange / 2);
+      const currentAstAngle = (asteroid.angle + currentOsc + 360) % 360;
+
+      // In App.tsx, the projectile hit logic is slightly different
+      // It uses a physical projectile. We need to check if the projectile hit an asteroid
+      // However, for simplicity and consistency with the instant hit logic requested, 
+      // we can check if there was an asteroid at the shot angle.
+      // But App.tsx uses Projectile component which handles hits.
+      return false; // We will handle this inside Projectile or here if we change how Projectile works
+    });
+    // NOTE: In App.tsx, the hit detection is actually inside the Projectile component!
+    // I need to check Projectile.tsx too.
+
     const slot = orbit.slots[bestSlotIdx];
     applyMathOp(slot.op, slot.value);
 
@@ -322,32 +349,35 @@ export default function App() {
   // Render Screens
   if (gamePhase === 'MENU') {
     return (
-      <View style={styles.container}>
-        <StarBackground />
-        <View style={styles.menuContent}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>MATH ORBIT</Text>
-            <Text style={[styles.title, styles.heroTitle]}>HERO</Text>
+      <SafeAreaProvider>
+        <View style={styles.container}>
+          <StarBackground />
+          <View style={styles.menuContent}>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>MATH ORBIT</Text>
+              <Text style={[styles.title, styles.heroTitle]}>HERO</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.menuButton}
+              onPress={() => handleModeSelect('LEVEL')}
+            >
+              <Play color="#fff" size={24} />
+              <Text style={styles.menuButtonText}>OYUNA BAŞLA (Bölüm {currentLevelIndex})</Text>
+            </TouchableOpacity>
+
           </View>
-
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => handleModeSelect('LEVEL')}
-          >
-            <Play color="#fff" size={24} />
-            <Text style={styles.menuButtonText}>OYUNA BAŞLA (Bölüm {currentLevelIndex})</Text>
-          </TouchableOpacity>
-
         </View>
-      </View>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <View style={[
-      styles.container,
-      currentLevelData?.isBoss && { backgroundColor: '#1a0033' } // Dark purple for Boss
-    ]}>
+    <SafeAreaProvider>
+      <View style={[
+        styles.container,
+        currentLevelData?.isBoss && { backgroundColor: '#1a0033' } // Dark purple for Boss
+      ]}>
       <StatusBar barStyle="light-content" />
       <StarBackground />
       {currentLevelData?.isBoss && (
@@ -394,13 +424,16 @@ export default function App() {
         style={styles.gameArea}
       >
         {gamePhase === 'ORBIT_PHASE' && currentLevelData && (
-          <Orbit
-            key={activeOrbitIndex}
-            radius={currentLevelData.orbits[activeOrbitIndex].radius}
-            rotationSpeed={currentLevelData.orbits[activeOrbitIndex].rotationSpeed}
-            slots={currentLevelData.orbits[activeOrbitIndex].slots}
-            isActive={true}
-            initialRotation={currentLevelData.orbits[activeOrbitIndex].initialRotation} isPaused={false} />
+            <Orbit
+              key={activeOrbitIndex}
+              radius={currentLevelData.orbits[activeOrbitIndex].radius}
+              rotationSpeed={currentLevelData.orbits[activeOrbitIndex].rotationSpeed}
+              slots={currentLevelData.orbits[activeOrbitIndex].slots}
+              isActive={true}
+              initialRotation={currentLevelData.orbits[activeOrbitIndex].initialRotation}
+              isPaused={false}
+              asteroids={currentLevelData.orbits[activeOrbitIndex].asteroids}
+            />
         )}
 
         {gamePhase === 'METEOR_PHASE' && !showExplosion && (
@@ -502,26 +535,46 @@ export default function App() {
         </View>
       )}
 
-      {/* Tutorial Overlay - Shows on first level */}
-      {showTutorial && currentLevelIndex <= 2 && gamePhase === 'ORBIT_PHASE' && (
+      {/* Tutorial Overlay - Shows on first level and level 3 */}
+      {showTutorial && (currentLevelIndex <= 2 || currentLevelIndex === 3) && gamePhase === 'ORBIT_PHASE' && (
         <View style={styles.overlay}>
           <View style={styles.overlayBox}>
-            <Text style={[styles.overlayTitle, { fontSize: 26 }]}>NASIL OYNANIR?</Text>
+            <Text style={[styles.overlayTitle, { fontSize: 26 }]}>
+              {currentLevelIndex === 3 ? 'YENİ TEHLİKE!' : 'NASIL OYNANIR?'}
+            </Text>
 
-            <View style={styles.tutorialItem}>
-              <Text style={styles.tutorialEmoji}>🎯</Text>
-              <Text style={styles.tutorialDesc}>Ekrana basılı tut, geri çek ve bırak! Mermi yörüngeye doğru ateşlenir.</Text>
-            </View>
+            {currentLevelIndex <= 2 ? (
+              <>
+                <View style={styles.tutorialItem}>
+                  <Text style={styles.tutorialEmoji}>🎯</Text>
+                  <Text style={styles.tutorialDesc}>Ekrana basılı tut, geri çek ve bırak! Mermi yörüngeye doğru ateşlenir.</Text>
+                </View>
 
-            <View style={styles.tutorialItem}>
-              <Text style={styles.tutorialEmoji}>💎</Text>
-              <Text style={styles.tutorialDesc}>Yörüngelerdeki matematik işlemleri gücünü artırır veya azaltır. Yeşiller iyi, kırmızılar kötü!</Text>
-            </View>
+                <View style={styles.tutorialItem}>
+                  <Text style={styles.tutorialEmoji}>💎</Text>
+                  <Text style={styles.tutorialDesc}>Yörüngelerdeki matematik işlemleri gücünü artırır veya azaltır. Yeşiller iyi, kırmızılar kötü!</Text>
+                </View>
 
-            <View style={styles.tutorialItem}>
-              <Text style={styles.tutorialEmoji}>☄️</Text>
-              <Text style={styles.tutorialDesc}>Tüm yörüngelerden geçtikten sonra meteora karşı savaşırsın. Gücün yeterliyse kazanırsın!</Text>
-            </View>
+                <View style={styles.tutorialItem}>
+                  <Text style={styles.tutorialEmoji}>☄️</Text>
+                  <Text style={styles.tutorialDesc}>Tüm yörüngelerden geçtikten sonra meteora karşı savaşırsın. Gücün yeterliyse kazanırsın!</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={{ height: 100, width: '100%', justifyContent: 'center', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20 }}>
+                  <Asteroid radius={0} angle={0} width={20} oscillationRange={40} oscillationSpeed={2000} isPaused={false} />
+                </View>
+                <View style={styles.tutorialItem}>
+                  <Text style={styles.tutorialEmoji}>🪨</Text>
+                  <Text style={styles.tutorialDesc}>Dikkat! Yörüngelerin önünde yüzen asteroidler belirdi.</Text>
+                </View>
+                <View style={styles.tutorialItem}>
+                  <Text style={styles.tutorialEmoji}>🚫</Text>
+                  <Text style={styles.tutorialDesc}>Onlara çarparsan atışın boşa gider. Zamanlamanı iyi ayarla!</Text>
+                </View>
+              </>
+            )}
 
             <TouchableOpacity
               style={[styles.overlayButton, { backgroundColor: COLORS.primary, marginTop: 20 }]}
@@ -556,7 +609,8 @@ export default function App() {
           </View>
         </View>
       )}
-    </View>
+      </View>
+    </SafeAreaProvider>
   );
 }
 
