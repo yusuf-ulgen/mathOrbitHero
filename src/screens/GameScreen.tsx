@@ -16,7 +16,7 @@ import { Meteor } from '../components/Meteor';
 import { Asteroid } from '../components/Asteroid';
 import { BattleProjectile } from '../components/BattleProjectile';
 import { ScreenShake, Explosion } from '../components/Effects';
-import { Timer, Zap, Pause, Play, Home, RotateCcw } from 'lucide-react-native';
+import { Timer, Zap, Pause, Play, Home, RotateCcw, Rocket, Trash2 } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -503,14 +503,20 @@ export const GameScreen = ({ route, navigation }: any) => {
                     style={[styles.modalButton, { backgroundColor: COLORS.primary }]}
                     onPress={() => navigation.replace('Game', { level: level + 1 })}
                   >
-                    <Text style={[styles.buttonText, { color: '#000' }]}>SIRADAKİ BÖLÜM</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Rocket color="#000" size={20} style={{ marginRight: 10 }} />
+                      <Text style={[styles.buttonText, { color: '#000' }]}>SIRADAKİ BÖLÜM</Text>
+                    </View>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
                     style={[styles.modalButton, { backgroundColor: COLORS.danger }]}
                     onPress={() => navigation.replace('Game', { level })}
                   >
-                    <Text style={styles.buttonText}>TEKRAR DENE</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <RotateCcw color="#fff" size={20} style={{ marginRight: 10 }} />
+                      <Text style={styles.buttonText}>TEKRAR DENE</Text>
+                    </View>
                   </TouchableOpacity>
                 )}
 
@@ -518,7 +524,10 @@ export const GameScreen = ({ route, navigation }: any) => {
                   style={[styles.modalButton, { backgroundColor: 'rgba(255,255,255,0.1)', marginTop: 10 }]}
                   onPress={() => navigation.goBack()}
                 >
-                  <Text style={styles.buttonText}>ANA MENÜ</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Home color="#fff" size={20} style={{ marginRight: 10 }} />
+                    <Text style={styles.buttonText}>ANA MENÜ</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             </View>

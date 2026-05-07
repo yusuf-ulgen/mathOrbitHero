@@ -502,35 +502,62 @@ export default function App() {
                 : `Göktaşı gücü (${currentLevelData?.meteorHealth}) senin gücünden (${initialHeroPower}) fazlaydı.`}
             </Text>
 
-            {gamePhase === 'GAME_OVER' && (
+            <View style={{ width: '100%', gap: 12 }}>
+              {gamePhase === 'GAME_OVER' && (
+                <TouchableOpacity
+                  style={[
+                    styles.overlayButton,
+                    { backgroundColor: COLORS.success }
+                  ]}
+                  onPress={() => {
+                    orbitStartTime.current = Date.now();
+                    startLevel();
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <RotateCcw color="#fff" size={22} style={{ marginRight: 12 }} />
+                    <Text style={styles.overlayButtonText}>TEKRAR DENE</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={[
                   styles.overlayButton,
-                  { backgroundColor: COLORS.success, marginBottom: 15 }
+                  { backgroundColor: gamePhase === 'WIN' ? COLORS.success : COLORS.danger }
                 ]}
                 onPress={() => {
                   orbitStartTime.current = Date.now();
-                  startLevel();
+                  gamePhase === 'WIN' ? startLevel() : resetToMenu();
                 }}
               >
-                <Text style={styles.overlayButtonText}>TEKRAR OYNA</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {gamePhase === 'WIN' ? (
+                    <Rocket color="#fff" size={22} style={{ marginRight: 12 }} />
+                  ) : (
+                    <Home color="#fff" size={22} style={{ marginRight: 12 }} />
+                  )}
+                  <Text style={styles.overlayButtonText}>
+                    {gamePhase === 'WIN' ? 'SIRADAKİ BÖLÜM' : 'MENÜYE DÖN'}
+                  </Text>
+                </View>
               </TouchableOpacity>
-            )}
 
-            <TouchableOpacity
-              style={[
-                styles.overlayButton,
-                { backgroundColor: gamePhase === 'WIN' ? COLORS.success : COLORS.danger }
-              ]}
-              onPress={() => {
-                orbitStartTime.current = Date.now();
-                gamePhase === 'WIN' ? startLevel() : resetToMenu();
-              }}
-            >
-              <Text style={styles.overlayButtonText}>
-                {gamePhase === 'WIN' ? 'SIRADAKİ BÖLÜM' : 'MENÜYE DÖN'}
-              </Text>
-            </TouchableOpacity>
+              {gamePhase === 'WIN' && (
+                <TouchableOpacity
+                  style={[
+                    styles.overlayButton,
+                    { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }
+                  ]}
+                  onPress={() => resetToMenu()}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Home color="#fff" size={22} style={{ marginRight: 12 }} />
+                    <Text style={styles.overlayButtonText}>ANA MENÜYE DÖN</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
       )}
