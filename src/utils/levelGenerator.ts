@@ -52,18 +52,31 @@ const generateLevelSlots = (rng: SeededRandom, isBoss: boolean, orbitCount: numb
     for (let s = 0; s < 3; s++) {
       const isNegative = negativePositions.some(p => p.orbitIdx === i && p.slotIdx === s);
       const ops: MathOp[] = isNegative ? ['-', '/'] : ['+', '*'];
-      const op = rng.pick(ops);
       
+      let op: MathOp = '+';
       let value = 0;
-      if (op === '+') value = rng.nextInt(5, 25);
-      if (op === '-') value = rng.nextInt(5, 15);
-      if (op === '*') value = rng.nextInt(2, 4);
-      if (op === '/') value = rng.nextInt(2, 3);
+      let label = '';
+      
+      let retries = 0;
+      while (retries < 20) {
+        op = rng.pick(ops);
+        if (op === '+') value = rng.nextInt(5, 25);
+        if (op === '-') value = rng.nextInt(5, 15);
+        if (op === '*') value = rng.nextInt(2, 4);
+        if (op === '/') value = rng.nextInt(2, 3);
+        label = `${op}${value}`;
+        
+        // Eğer bu işlem mevcut yörüngede daha önce oluşturulmamışsa döngüden çık
+        if (!orbitSlots.some(slot => slot.label === label)) {
+          break;
+        }
+        retries++;
+      }
       
       orbitSlots.push({
         op,
         value,
-        label: `${op}${value}`,
+        label,
       });
     }
     allSlots.push(orbitSlots);
@@ -100,7 +113,7 @@ export const generateLevel = (levelId: number): LevelConfig => {
     }
 
     orbits.push({
-      radius: Math.min(100 + (i * 40), 220),
+      radius: 100 + (i * 40),
       rotationSpeed: baseSpeed + (rng.nextInt(-1000, 1000)),
       slots: slotsData[i],
       initialRotation: rng.nextInt(0, 359),

@@ -29,7 +29,8 @@ import { TutorialAlert } from './src/components/TutorialAlert';
 import { useGameStore } from './src/store/useGameStore';
 import { COLORS } from './src/constants/theme';
 import * as Haptics from 'expo-haptics';
-import { Rocket, Trophy, Play, Home, RotateCcw } from 'lucide-react-native';
+import { Rocket, Trophy, Play, Home, RotateCcw, Info, Download } from 'lucide-react-native';
+import { checkAppStatus, UpdateData } from './src/utils/updateManager';
 
 const { width, height } = Dimensions.get('window');
 
@@ -104,6 +105,27 @@ export default function App() {
   const [showExplosion, setShowExplosion] = useState(false);
   const [battleDone, setBattleDone] = useState(false);
   const shotsFiredRef = useRef(0);
+
+  // Update States
+  const [updateStatus, setUpdateStatus] = useState<{
+    showUpdateDetails: boolean;
+    updateAvailable: boolean;
+    updateData: UpdateData | null;
+    currentVersion: string;
+  } | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [showUpdateDetailsModal, setShowUpdateDetailsModal] = useState(false);
+
+  React.useEffect(() => {
+    checkAppStatus().then((status) => {
+      setUpdateStatus(status);
+      if (status.showUpdateDetails) {
+        setShowUpdateDetailsModal(true);
+      } else if (status.updateAvailable) {
+        setShowUpdateModal(true);
+      }
+    });
+  }, []);
 
   const gamePhaseRef = useRef(gamePhase);
   const isShootingRef = useRef(activeProjectile);
@@ -366,6 +388,71 @@ export default function App() {
               <Text style={styles.menuButtonText}>OYUNA BAŞLA (Bölüm {currentLevelIndex})</Text>
             </TouchableOpacity>
 
+            {/* Update Notification Banner */}
+            {updateStatus?.updateAvailable && (
+              <TouchableOpacity 
+                style={styles.updateBanner}
+                onPress={() => setShowUpdateModal(true)}
+              >
+                <Download color={COLORS.primary} size={20} />
+                <Text style={styles.updateBannerText}>YENİ GÜNCELLEME VAR!</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Modals */}
+            {showUpdateModal && updateStatus?.updateData && (
+              <View style={styles.overlay}>
+                <View style={styles.overlayBox}>
+                  <Download color={COLORS.primary} size={48} />
+                  <Text style={styles.overlayTitle}>GÜNCELLEME MEVCUT</Text>
+                  <Text style={[styles.overlaySub, { marginBottom: 20 }]}>
+                    Sürüm {updateStatus.updateData.latestVersion} hazır!
+                  </Text>
+                  <View style={{ width: '100%', gap: 12 }}>
+                    <TouchableOpacity
+                      style={[styles.overlayButton, { backgroundColor: COLORS.primary }]}
+                      onPress={() => {
+                        Linking.openURL(updateStatus.updateData!.storeUrl);
+                      }}
+                    >
+                      <Text style={[styles.overlayButtonText, { color: '#000' }]}>ŞİMDİ GÜNCELLE</Text>
+                    </TouchableOpacity>
+                    {!updateStatus.updateData.isMandatory && (
+                      <TouchableOpacity
+                        style={[styles.overlayButton, { backgroundColor: 'transparent', borderWidth: 1, borderColor: COLORS.primary }]}
+                        onPress={() => setShowUpdateModal(false)}
+                      >
+                        <Text style={[styles.overlayButtonText, { color: COLORS.primary }]}>DAHA SONRA</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {showUpdateDetailsModal && updateStatus?.updateData && (
+              <View style={styles.overlay}>
+                <View style={[styles.overlayBox, { maxHeight: '80%' }]}>
+                  <Info color={COLORS.primary} size={48} />
+                  <Text style={styles.overlayTitle}>GÜNCELLEME DETAYLARI</Text>
+                  <Text style={[styles.overlaySub, { marginBottom: 15, color: COLORS.primary }]}>
+                    Sürüm {updateStatus.currentVersion}
+                  </Text>
+                  <View style={styles.releaseNotesContainer}>
+                    <Text style={styles.releaseNotesText}>
+                      {updateStatus.updateData.releaseNotes}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.overlayButton, { backgroundColor: COLORS.primary, marginTop: 20 }]}
+                    onPress={() => setShowUpdateDetailsModal(false)}
+                  >
+                    <Text style={[styles.overlayButtonText, { color: '#000' }]}>ANLADIM</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
           </View>
         </View>
       </SafeAreaProvider>
@@ -455,7 +542,7 @@ export default function App() {
         </Animated.View>
 
         {showExplosion && (
-          <View style={[styles.explosionContainer, { top: 120 + 50 }]}>
+          <View style={[styles.explosionContainer, { top: 170 + 50 }]}>
             <Explosion active={true} onComplete={() => { }} />
           </View>
         )}
@@ -686,6 +773,35 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 15,
   },
+  updateBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 255, 170, 0.1)',
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginTop: 10,
+  },
+  updateBannerText: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
+    marginLeft: 10,
+  },
+  releaseNotesContainer: {
+    width: '100%',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 15,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  releaseNotesText: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 22,
+  },
   highScoreLabel: {
     color: COLORS.primary,
     fontSize: 12,
@@ -712,7 +828,7 @@ const styles = StyleSheet.create({
   },
   hud: {
     position: 'absolute',
-    top: 50,
+    top: 35,
     width: '100%',
     paddingHorizontal: 25,
     zIndex: 300,
@@ -847,7 +963,7 @@ const styles = StyleSheet.create({
   },
   meteorContainer: {
     position: 'absolute',
-    top: 120,
+    top: 170,
     width: '100%',
     alignItems: 'center',
     zIndex: 200,

@@ -24,7 +24,7 @@ const { width, height } = Dimensions.get('window');
 
 // Positions
 const HERO_BOTTOM_Y = height - 200;    // Hero position in battle
-const METEOR_TOP_Y = 120;              // Where meteor stops (from top of gameArea)
+const METEOR_TOP_Y = 170;              // Where meteor stops (from top of gameArea)
 // Adjusted for center-aligned container
 const PROJECTILE_START_Y = height / 2 - 130; 
 const PROJECTILE_END_Y = -height / 2 + METEOR_TOP_Y + 45;
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
   },
   hud: {
     position: 'absolute',
-    top: 60,
+    top: 35,
     width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
