@@ -9,7 +9,8 @@ import {
   PanResponder,
   Animated as ReactNativeAnimated,
   BackHandler,
-  Alert
+  Alert,
+  Linking
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -29,7 +30,7 @@ import { TutorialAlert } from './src/components/TutorialAlert';
 import { useGameStore } from './src/store/useGameStore';
 import { COLORS } from './src/constants/theme';
 import * as Haptics from 'expo-haptics';
-import { Rocket, Trophy, Play, Home, RotateCcw, Info, Download } from 'lucide-react-native';
+import { Rocket, Trophy, Play, Home, RotateCcw, Info, Download, LayoutGrid } from 'lucide-react-native';
 import { checkAppStatus, UpdateData } from './src/utils/updateManager';
 
 const { width, height } = Dimensions.get('window');
@@ -115,6 +116,7 @@ export default function App() {
   } | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showUpdateDetailsModal, setShowUpdateDetailsModal] = useState(false);
+  const [showDeveloperModal, setShowDeveloperModal] = useState(false);
 
   React.useEffect(() => {
     checkAppStatus().then((status) => {
@@ -253,6 +255,10 @@ export default function App() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
   };
 
+  const handleDeveloperLink = () => {
+    setShowDeveloperModal(true);
+  };
+
   const fireShot = () => {
     if (gamePhase !== 'ORBIT_PHASE' || activeProjectile) return;
 
@@ -381,6 +387,13 @@ export default function App() {
             </View>
 
             <TouchableOpacity
+              style={styles.developerButton}
+              onPress={handleDeveloperLink}
+            >
+              <LayoutGrid color={COLORS.primary} size={24} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={styles.menuButton}
               onPress={() => handleModeSelect('LEVEL')}
             >
@@ -449,6 +462,34 @@ export default function App() {
                   >
                     <Text style={[styles.overlayButtonText, { color: '#000' }]}>ANLADIM</Text>
                   </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Developer Modal */}
+            {showDeveloperModal && (
+              <View style={styles.overlay}>
+                <View style={styles.overlayBox}>
+                  <LayoutGrid color={COLORS.primary} size={64} />
+                  <Text style={styles.overlayTitle}>DİĞER İÇERİKLER</Text>
+                  <Text style={styles.overlaySub}>Yapımcının diğer içeriklerine ve oyunlarına göz atmak ister misiniz?</Text>
+                  <View style={{ flexDirection: 'row', gap: 15, width: '100%' }}>
+                    <TouchableOpacity
+                      style={[styles.overlayButton, { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }]}
+                      onPress={() => setShowDeveloperModal(false)}
+                    >
+                      <Text style={styles.overlayButtonText}>VAZGEÇ</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.overlayButton, { flex: 1, backgroundColor: COLORS.primary }]}
+                      onPress={() => {
+                        setShowDeveloperModal(false);
+                        Linking.openURL('https://play.google.com/store/apps/developer?id=Yusuf+Ulgen');
+                      }}
+                    >
+                      <Text style={[styles.overlayButtonText, { color: '#000' }]}>GÖZ AT</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             )}
@@ -677,7 +718,7 @@ export default function App() {
             ) : (
               <>
                 <View style={{ height: 100, width: '100%', justifyContent: 'center', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20 }}>
-                  <Asteroid radius={0} angle={0} width={20} oscillationRange={40} oscillationSpeed={2000} isPaused={false} />
+                  <Asteroid radius={0} angle={0} width={20} oscillationRange={40} oscillationSpeed={2000} isPaused={false} isDestroyed={false} />
                 </View>
                 <View style={styles.tutorialItem}>
                   <Text style={styles.tutorialEmoji}>🪨</Text>
@@ -718,6 +759,34 @@ export default function App() {
                 onPress={() => { setShowExitModal(false); resetToMenu(); }}
               >
                 <Text style={styles.overlayButtonText}>EVET</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Developer Modal */}
+      {showDeveloperModal && (
+        <View style={styles.overlay}>
+          <View style={styles.overlayBox}>
+            <LayoutGrid color={COLORS.primary} size={64} />
+            <Text style={styles.overlayTitle}>DİĞER İÇERİKLER</Text>
+            <Text style={styles.overlaySub}>Yapımcının diğer içeriklerine ve oyunlarına göz atmak ister misiniz?</Text>
+            <View style={{ flexDirection: 'row', gap: 15, width: '100%' }}>
+              <TouchableOpacity
+                style={[styles.overlayButton, { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }]}
+                onPress={() => setShowDeveloperModal(false)}
+              >
+                <Text style={styles.overlayButtonText}>VAZGEÇ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.overlayButton, { flex: 1, backgroundColor: COLORS.primary }]}
+                onPress={() => {
+                  setShowDeveloperModal(false);
+                  Linking.openURL('https://play.google.com/store/apps/developer?id=Yusuf+Ulgen');
+                }}
+              >
+                <Text style={[styles.overlayButtonText, { color: '#000' }]}>GÖZ AT</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -912,13 +981,22 @@ const styles = StyleSheet.create({
     padding: 30,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0, 247, 255, 0.2)',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
   },
   overlayTitle: {
     color: '#fff',
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
     marginTop: 20,
+    textAlign: 'center',
+    textShadowColor: COLORS.primary,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 15,
   },
   overlaySub: {
     color: COLORS.textSecondary,
@@ -973,5 +1051,16 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     zIndex: 300,
+  },
+  developerButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 500,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 12,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
 });
